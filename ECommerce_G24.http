@@ -1,0 +1,6 @@
+@ECommerce_G24_HostAddress = http://localhost:5134
+
+GET {{ECommerce_G24_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

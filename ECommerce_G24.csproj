@@ -13,12 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Users.API\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="Users.API\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Users.API\Properties\" />
+    <Folder Include="docs\" />
   </ItemGroup>
 
 </Project>

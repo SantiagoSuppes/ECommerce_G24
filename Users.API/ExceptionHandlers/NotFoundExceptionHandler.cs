@@ -1,0 +1,35 @@
+using Users.API.Exceptions;
+using Microsoft.AspNetCore.Diagnostics;
+using System.Net;
+
+namespace Users.API.ExceptionHandlers;
+
+public class NotFoundExceptionHandler : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext httpContext,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        if (exception is not NotFoundException notFoundException)
+            return false;
+
+        httpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+        httpContext.Response.ContentType = "application/json";
+
+        await httpContext.Response.WriteAsJsonAsync(
+            new
+            {
+                type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+                title = "Not Found",
+                status = 404,
+                detail = notFoundException.Message,
+                instance = httpContext.Request.Path,
+                errorCode = "NOT-FOUND",
+                errorMessage = notFoundException.Message
+            },
+            cancellationToken);
+
+        return true;
+    }
+}

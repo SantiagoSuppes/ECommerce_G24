@@ -1,4 +1,4 @@
-﻿namespace ECommerce.Products.API.Exceptions
+﻿namespace ECommerce_G24.Products.API.Exceptions
 {
     public class NotFoundException(string errorCode,string message):Exception(message)
     {
@@ -6,4 +6,5 @@
 
         
     }
+
 }

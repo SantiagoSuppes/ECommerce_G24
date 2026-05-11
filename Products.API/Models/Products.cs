@@ -1,6 +1,6 @@
 ﻿using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace ECommerce.Products.API.Models
+namespace ECommerce_G24.Products.API.Models
 {
     public class Products
     {

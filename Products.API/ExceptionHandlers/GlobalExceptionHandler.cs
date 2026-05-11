@@ -1,11 +1,10 @@
 ﻿using Microsoft.AspNetCore.Diagnostics;
 using ECommerce_G24.Products.API.Exceptions;
-
 namespace ECommerce_G24.Products.API.ExceptionHandlers
 {
-    public class NotFoundExceptionHandler : IExceptionHandler
+    public class GlobalExceptionHandler:IExceptionHandler
     {
-        public async ValueTask<bool> TryHandleAsync(
+        async public ValueTask<bool> TryHandleAsync(
             HttpContext context,
             Exception exception,
             CancellationToken cancellationToken
@@ -15,20 +14,21 @@ namespace ECommerce_G24.Products.API.ExceptionHandlers
             {
                 return false;
             }
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             await context.Response.WriteAsJsonAsync(new
             {
                 type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-                title = "Not Found",
-                status = 404,
-                detail = "El recurso solicitado no fue encontrado.",
+                title = "Internal service error",
+                status = 500,
+                detail = "Ocurrió un error inesperado",
                 instance = context.Request.Path.Value,
-                errorCode = ex.ErrorCode,
-                errorMessage = ex.Message,
+                errorCode = "PRD-005",
+                errorMessage = "Error interno al procesar el producto.",
                 correlationId = context.TraceIdentifier
+
             }, cancellationToken);
             return true;
         }
+        
     }
 }
-    

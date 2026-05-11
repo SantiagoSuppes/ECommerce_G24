@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommerce.Products.API.Dtos
+namespace ECommerce_G24.Products.API.Dtos
 {
     public class UpdateProductRequestDto
     {

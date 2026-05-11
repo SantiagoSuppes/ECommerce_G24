@@ -2,7 +2,7 @@
 using System.Globalization;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace ECommerce.Products.API.Dtos
+namespace ECommerce_G24.Products.API.Dtos
 {
     public class CreateProductRequestDto
     {

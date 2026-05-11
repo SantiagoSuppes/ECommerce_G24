@@ -1,6 +1,6 @@
-﻿using ECommerce.Products.API.Dtos;
+﻿using ECommerce_G24.Products.API.Dtos;
 
-namespace ECommerce.Products.API.Services
+namespace ECommerce_G24.Products.API.Services
 {
     public interface IProductService
     {

@@ -2,6 +2,8 @@
 
 namespace ECommerce_G24.Cart.Api.Services
 {
+    // Contrato del servicio de carrito.
+    // El controller depende de esta interfaz, no directamente de CartService.
     public interface ICartService
     {
         Task<CartResponseDto> GetCartAsync(Guid userId);

@@ -2,11 +2,15 @@
 
 namespace ECommerce_G24.Cart.Api.Dtos
 {
+    // DTO que recibe el POST para agregar un producto al carrito.
     public class AddCartItemRequestDto
     {
+        // Producto que se quiere agregar.
         [Required]
         public Guid ProductoId { get; set; }
 
+        // Cantidad a agregar.
+        // Debe ser mayor a cero.
         [Required]
         [Range(1, int.MaxValue, ErrorMessage = "La cantidad debe ser mayor a cero.")]
         public int Cantidad { get; set; }

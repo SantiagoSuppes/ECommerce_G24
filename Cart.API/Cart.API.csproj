@@ -5,15 +5,13 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 
-		<!-- Genera XML comments para que Swagger pueda leer los comentarios del código -->
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-
-		<!-- Evita warnings por no comentar absolutamente todas las clases/métodos -->
 		<NoWarn>$(NoWarn);1591</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- Swagger / OpenAPI -->
+
+		<!-- Swagger -->
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
 
 		<!-- Serilog -->
@@ -23,6 +21,7 @@
 		<PackageReference Include="Serilog.Enrichers.Environment" Version="2.3.0" />
 		<PackageReference Include="Serilog.Enrichers.Process" Version="2.0.2" />
 		<PackageReference Include="Serilog.Enrichers.Thread" Version="3.1.0" />
+
 	</ItemGroup>
 
 </Project>

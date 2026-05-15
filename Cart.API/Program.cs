@@ -2,7 +2,7 @@ using ECommerce_G24.Cart.API.ExceptionHandlers;
 using ECommerce_G24.Cart.API.Middleware;
 using ECommerce_G24.Cart.API.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Reflection;
 

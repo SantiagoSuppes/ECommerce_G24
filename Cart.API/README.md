@@ -2,8 +2,6 @@
 
 ## Descripción
 
-`Cart.API` es un microservicio desarrollado en ASP.NET Core 8 que forma parte del sistema de E-Commerce basado en arquitectura de microservicios.
-
 Este microservicio es responsable de:
 
 * Obtener el carrito de un usuario.
@@ -456,7 +454,3 @@ dotnet restore
 * Buenas prácticas ASP.NET Core 8
 
 ---
-
-# Autor
-
-Proyecto académico - Arquitectura de Microservicios E-Commerce - .NET 8

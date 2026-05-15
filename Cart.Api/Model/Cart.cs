@@ -1,4 +1,4 @@
-﻿namespace ECommerce_G24.Cart.Api.Model
+﻿namespace ECommerce_G24.Cart.API.Model
 {
     // Representa el carrito de un usuario.
     public class Cart

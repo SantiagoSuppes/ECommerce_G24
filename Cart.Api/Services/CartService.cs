@@ -1,15 +1,15 @@
-﻿using ECommerce_G24.Cart.Api.Dtos;
-using ECommerce_G24.Cart.Api.Exceptions;
-using ECommerce_G24.Cart.Api.Model;
-using ECommerce_G24.Cart.API.Dtos;
+﻿using ECommerce_G24.Cart.API.Dtos;
+using ECommerce_G24.Cart.API.Exceptions;
+using ECommerce_G24.Cart.API.Model;
+using ECommerce_G24.Cart.API.Services;
 using System.Net;
 
-namespace ECommerce_G24.Cart.Api.Services
+namespace ECommerce_G24.Cart.API.Services
 {
     public class CartService : ICartService
     {
         // Persistencia temporal en memoria.
-        private static readonly List<Cart.Api.Model.Cart> _carts = new();
+        private static readonly List<Cart.API.Model.Cart> _carts = new();
 
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<CartService> _logger;
@@ -53,7 +53,7 @@ namespace ECommerce_G24.Cart.Api.Services
 
             if (cart == null)
             {
-                cart = new Cart.Api.Model.Cart
+                cart = new Cart.API.Model.Cart
                 {
                     UsuarioId = userId,
                     FechaActualizacion = DateTime.UtcNow
@@ -243,7 +243,7 @@ namespace ECommerce_G24.Cart.Api.Services
         }
 
         // Mapeo de entidad interna a DTO de respuesta.
-        private static CartResponseDto MapToResponse(Cart.Api.Model.Cart cart)
+        private static CartResponseDto MapToResponse(Cart.API.Model.Cart cart)
         {
             return new CartResponseDto
             {

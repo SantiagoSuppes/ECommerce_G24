@@ -1,4 +1,4 @@
-﻿namespace ECommerce_G24.Cart.Api.Dtos
+﻿namespace ECommerce_G24.Cart.API.Dtos
 {
     // DTO que devuelve cada item del carrito.
     public class CartItemResponseDto

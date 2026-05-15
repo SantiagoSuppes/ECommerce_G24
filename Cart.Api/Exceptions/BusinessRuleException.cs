@@ -1,4 +1,4 @@
-﻿namespace ECommerce_G24.Cart.Api.Exceptions
+﻿namespace ECommerce_G24.Cart.API.Exceptions
 {
     // Se usa para errores de regla de negocio.
     // Ejemplo: stock insuficiente.

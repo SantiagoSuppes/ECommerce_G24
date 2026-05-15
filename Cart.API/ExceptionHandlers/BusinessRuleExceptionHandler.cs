@@ -1,4 +1,4 @@
-﻿using ECommerce_G24.Cart.Api.Exceptions;
+﻿using ECommerce_G24.Cart.API.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace ECommerce_G24.Cart.API.ExceptionHandlers

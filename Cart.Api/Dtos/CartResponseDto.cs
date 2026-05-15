@@ -1,4 +1,4 @@
-﻿namespace ECommerce_G24.Cart.Api.Dtos
+﻿namespace ECommerce_G24.Cart.API.Dtos
 {
     // DTO de respuesta principal del carrito.
     public class CartResponseDto

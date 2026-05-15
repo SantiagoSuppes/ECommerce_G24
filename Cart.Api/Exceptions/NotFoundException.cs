@@ -1,4 +1,4 @@
-﻿namespace ECommerce_G24.Cart.Api.Exceptions
+﻿namespace ECommerce_G24.Cart.API.Exceptions
 {
     // Se usa para errores 404.
     // Ejemplo: carrito no encontrado o producto no encontrado.

@@ -1,6 +1,5 @@
-﻿using ECommerce_G24.Cart.Api.Dtos;
-using ECommerce_G24.Cart.Api.Services;
-using ECommerce_G24.Cart.API.Dtos;
+﻿using ECommerce_G24.Cart.API.Dtos;
+using ECommerce_G24.Cart.API.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce_G24.Cart.API.Controller

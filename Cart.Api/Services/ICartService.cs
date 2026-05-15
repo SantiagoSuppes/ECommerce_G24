@@ -1,6 +1,6 @@
-﻿using ECommerce_G24.Cart.Api.Dtos;
+﻿using ECommerce_G24.Cart.API.Dtos;
 
-namespace ECommerce_G24.Cart.Api.Services
+namespace ECommerce_G24.Cart.API.Services
 {
     // Contrato del servicio de carrito.
     // El controller depende de esta interfaz, no directamente de CartService.

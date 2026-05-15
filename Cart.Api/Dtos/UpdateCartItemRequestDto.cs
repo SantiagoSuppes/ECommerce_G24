@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommerce_G24.Cart.Api.Dtos
+namespace ECommerce_G24.Cart.API.Dtos
 {
     // DTO que recibe el PUT para cambiar la cantidad de un producto.
     public class UpdateCartItemRequestDto

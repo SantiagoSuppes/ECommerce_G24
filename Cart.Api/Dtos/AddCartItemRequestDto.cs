@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommerce_G24.Cart.Api.Dtos
+namespace ECommerce_G24.Cart.API.Dtos
 {
     // DTO que recibe el POST para agregar un producto al carrito.
     public class AddCartItemRequestDto

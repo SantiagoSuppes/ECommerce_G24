@@ -1,7 +1,6 @@
 ﻿namespace ECommerce_G24.Products.API.Dtos
 {
-    namespace Products.API.DTOs
-    {
+   
         // DTO que se devuelve como respuesta de producto.
         public class ProductResponseDto
         {
@@ -26,5 +25,5 @@
             // Fecha en la que fue creado el producto.
             public DateTime FechaCreacion { get; set; }
         }
-    }
+    
 }

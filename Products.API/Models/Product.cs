@@ -3,8 +3,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ECommerce_G24.Products.API.Models
 {
-    namespace Products.API.Models
-    {
+    
         // Entidad de dominio que representa un producto.
         public class Product
         {
@@ -29,8 +28,8 @@ namespace ECommerce_G24.Products.API.Models
             // Fecha de creación.
             public DateTime FechaCreacion { get; init; } = DateTime.UtcNow;
         }
-    }
 }
+
 
 
 

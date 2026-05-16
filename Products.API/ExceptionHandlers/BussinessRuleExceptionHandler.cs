@@ -1,41 +1,50 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿using ECommerce_G24.Products.API.Dtos;
 using ECommerce_G24.Products.API.Exceptions;
+using Microsoft.AspNetCore.Diagnostics;
 namespace ECommerce_G24.Products.API.ExceptionHandlers
 {
-    public class BussinessRuleExceptionHandler : IExceptionHandler
+    // Handler global para errores 409 por reglas de negocio.
+    public class BusinessRuleExceptionHandler : IExceptionHandler
     {
-        async public ValueTask<bool> TryHandleAsync(
+        private readonly ILogger<BusinessRuleExceptionHandler> _logger;
+
+        public BusinessRuleExceptionHandler(ILogger<BusinessRuleExceptionHandler> logger)
+        {
+            _logger = logger;
+        }
+
+        public async ValueTask<bool> TryHandleAsync(
             HttpContext context,
             Exception exception,
-            CancellationToken cancellationToken
-            )
+            CancellationToken cancellationToken)
         {
-            if (exception is not NotFoundException ex)
-            {
+            if (exception is not BusinessRuleException ex)
                 return false;
-            }
+
+            var correlationId = context.Response.Headers["X-Correlation-Id"].FirstOrDefault();
+
+            _logger.LogWarning(
+                exception,
+                "Regla de negocio incumplida {ErrorCode} en {Endpoint}. CorrelationId: {CorrelationId}",
+                ex.ErrorCode,
+                context.Request.Path,
+                correlationId);
+
             context.Response.StatusCode = StatusCodes.Status409Conflict;
-            await context.Response.WriteAsJsonAsync(new
+
+            await context.Response.WriteAsJsonAsync(new ErrorResponseDto
             {
-                type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-                title = "Conflict",
-                status = 409,
-                detail = GetDetail(ex.ErrorCode),
-                instance = context.Request.Path.Value,
-                errorCode = ex.ErrorCode,
-                errorMessage = ex.Message,
-                correlationid = context.TraceIdentifier
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.9",
+                Title = "Conflict",
+                Status = 409,
+                Detail = "No se puede completar la operación solicitada.",
+                Instance = context.Request.Path,
+                ErrorCode = ex.ErrorCode,
+                ErrorMessage = ex.Message,
+                CorrelationId = correlationId
             }, cancellationToken);
+
             return true;
-        }
-        private static string GetDetail(string errorCode)
-        {
-            return errorCode switch
-            {
-                "PRD-003" => "Ya existe un recurso con esos datos.",
-                "PRD-004" => "No se puede eliminar el recurso.",
-                _ => "No se pudo completar la operación por una regla de negocio."
-            };
         }
     }
 }

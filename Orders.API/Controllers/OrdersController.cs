@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using ECommerce_G24.src.Orders.API.Dtos;
-using ECommerce_G24.src.Orders.API.Services;
+using ECommerce_G24.Orders.API.Dtos;
+using ECommerce_G24.Orders.API.Services;
 
-namespace ECommerce_G24.src.Orders.API.Controllers;
+namespace ECommerce_G24.Orders.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]

@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics;
 using System.Net;
-using ECommerce_G24.src.Orders.API.Exceptions;
+using ECommerce_G24.Orders.API.Exceptions;
 
-namespace ECommerce_G24.src.Orders.API.ExceptionHandlers;
+namespace ECommerce_G24.Orders.API.ExceptionHandlers;
 
 public class BussinessRuleExceptionHandler : IExceptionHandler
 {

@@ -1,4 +1,4 @@
-namespace ECommerce_G24.src.Orders.API.Dtos;
+namespace ECommerce_G24.Orders.API.Dtos;
 
 public class OrderResponseDto
 {

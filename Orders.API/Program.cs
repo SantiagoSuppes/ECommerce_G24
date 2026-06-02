@@ -1,5 +1,5 @@
-using ECommerce_G24.src.Orders.API.ExceptionHandlers;
-using ECommerce_G24.src.Orders.API.Services;
+using ECommerce_G24.Orders.API.ExceptionHandlers;
+using ECommerce_G24.Orders.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,8 +1,8 @@
-using ECommerce_G24.src.Orders.API.Dtos;
-using ECommerce_G24.src.Orders.API.Exceptions;
-using ECommerce_G24.src.Orders.API.Models;
+using ECommerce_G24.Orders.API.Dtos;
+using ECommerce_G24.Orders.API.Models;
+using ECommerce_G24.Orders.API.Exceptions;
 
-namespace ECommerce_G24.src.Orders.API.Services;
+namespace ECommerce_G24.Orders.API.Services;
 
 public class OrderService : IOrderService
 {

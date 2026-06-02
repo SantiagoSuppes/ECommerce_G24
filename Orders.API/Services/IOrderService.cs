@@ -1,6 +1,6 @@
-using ECommerce_G24.src.Orders.API.Dtos;
+using ECommerce_G24.Orders.API.Dtos;
 
-namespace ECommerce_G24.src.Orders.API.Services;
+namespace ECommerce_G24.Orders.API.Services;
 
 public interface IOrderService
 {

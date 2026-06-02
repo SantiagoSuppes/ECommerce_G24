@@ -1,4 +1,4 @@
-namespace ECommerce_G24.src.Orders.API.Models;
+namespace ECommerce_G24.Orders.API.Models;
 
 public class Order
 {

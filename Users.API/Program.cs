@@ -8,12 +8,12 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuración de Serilog.
+// Se escribe en consola y en archivo JSON estructurado.
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
         .ReadFrom.Configuration(context.Configuration)
         .Enrich.FromLogContext()
-        .Enrich.WithMachineName()
         .Enrich.WithProperty("Servicio", "Users.API")
         .WriteTo.Console()
         .WriteTo.File(

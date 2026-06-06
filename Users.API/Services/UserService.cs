@@ -1,4 +1,3 @@
-using Serilog;
 using Users.API.Dtos;
 using Users.API.Exceptions;
 using Users.API.Models;

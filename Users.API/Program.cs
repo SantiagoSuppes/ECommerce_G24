@@ -1,9 +1,10 @@
-using Users.API.ExceptionHandlers;
-using Users.API.Middleware;
-using Users.API.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Reflection;
+using Users.API.ExceptionHandlers;
+using Users.API.Middleware;
+using Users.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,15 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Microservicio para administrar usuarios del e-commerce."
     });
+
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+
+
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
 });
 builder.Services.AddScoped<IUserService, UserService>();
 

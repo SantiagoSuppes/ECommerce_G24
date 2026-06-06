@@ -1,15 +1,41 @@
 using Users.API.ExceptionHandlers;
+using Users.API.Middleware;
 using Users.API.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.OpenApi.Models;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Configuración de Serilog.
+builder.Host.UseSerilog((context, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithMachineName()
+        .Enrich.WithProperty("Servicio", "Users.API")
+        .WriteTo.Console()
+        .WriteTo.File(
+            path: "logs/users-api-.json",
+            rollingInterval: RollingInterval.Day,
+            formatter: new Serilog.Formatting.Json.JsonFormatter());
+});
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Users API",
+        Version = "v1",
+        Description = "Microservicio para administrar usuarios del e-commerce."
+    });
+});
 builder.Services.AddScoped<IUserService, UserService>();
 
-// Register all exception handlers
+// Register exception handlers
 builder.Services.AddExceptionHandler<DuplicateEmailExceptionHandler>();
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<InvalidCredentialsExceptionHandler>();
@@ -19,19 +45,64 @@ builder.Services.AddExceptionHandler<InternalServerExceptionHandler>();
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddProblemDetails();
 
+// Health checks
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-app.UseExceptionHandler();
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+// CorrelationId middleware
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Serilog request logging (registra duración)
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} respondió {StatusCode} en {Elapsed:0.0000} ms";
+});
+
+app.UseExceptionHandler();
 app.UseHttpsRedirection();
 
 app.MapControllers();
+
+// Health checks
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString()
+        });
+    }
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString()
+        });
+    }
+});
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString()
+        });
+    }
+});
 
 app.Run();

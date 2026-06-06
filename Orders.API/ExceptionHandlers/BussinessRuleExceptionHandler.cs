@@ -14,6 +14,8 @@ public class BussinessRuleExceptionHandler : IExceptionHandler
         if (exception is not BussinessRuleException bussinessRuleException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.Conflict;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class BussinessRuleExceptionHandler : IExceptionHandler
                 detail = bussinessRuleException.Message,
                 instance = httpContext.Request.Path,
                 errorCode = "ORD-003",
-                errorMessage = bussinessRuleException.Message
+                errorMessage = bussinessRuleException.Message,
+                correlationId
             },
             cancellationToken);
 

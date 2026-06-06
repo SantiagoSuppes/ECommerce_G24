@@ -14,6 +14,8 @@ public class InternalServerExceptionHandler : IExceptionHandler
         if (exception is not InternalServerException internalServerException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class InternalServerExceptionHandler : IExceptionHandler
                 detail = internalServerException.Message,
                 instance = httpContext.Request.Path,
                 errorCode = "ORD-007",
-                errorMessage = internalServerException.Message
+                errorMessage = internalServerException.Message,
+                correlationId
             },
             cancellationToken);
 

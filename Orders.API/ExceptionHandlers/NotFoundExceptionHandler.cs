@@ -14,6 +14,8 @@ public class NotFoundExceptionHandler : IExceptionHandler
         if (exception is not NotFoundException notFoundException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class NotFoundExceptionHandler : IExceptionHandler
                 detail = notFoundException.Message,
                 instance = httpContext.Request.Path,
                 errorCode = "ORD-001",
-                errorMessage = notFoundException.Message
+                errorMessage = notFoundException.Message,
+                correlationId
             },
             cancellationToken);
 

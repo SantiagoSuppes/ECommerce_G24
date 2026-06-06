@@ -14,6 +14,8 @@ public class UserFraudBlockedExceptionHandler : IExceptionHandler
         if (exception is not UserFraudBlockedException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class UserFraudBlockedExceptionHandler : IExceptionHandler
                 detail = UserFraudBlockedException.ErrorMessage,
                 instance = httpContext.Request.Path,
                 errorCode = UserFraudBlockedException.ErrorCode,
-                errorMessage = UserFraudBlockedException.ErrorMessage
+                errorMessage = UserFraudBlockedException.ErrorMessage,
+                correlationId
             },
             cancellationToken);
 

@@ -15,6 +15,9 @@ public class UsersController : ControllerBase
         _userService = userService;
     }
 
+    ///<summary>
+    /// Registra un nuevo usuario.
+    ///</summary>
     [HttpPost("register")]
     public async Task<ActionResult<UserResponseDto>> Register([FromBody] RegisterUserRequestDto request)
     {
@@ -22,6 +25,9 @@ public class UsersController : ControllerBase
         return Created($"/api/users/{user.Id}", user);
     }
 
+    ///<summary>
+    /// Inicia sesión de un usuario.
+    ///</summary>
     [HttpPost("login")]
     public async Task<ActionResult<UserResponseDto>> Login([FromBody] LoginUserRequestDto request)
     {

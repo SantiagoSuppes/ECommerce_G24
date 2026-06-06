@@ -14,6 +14,8 @@ public class ValidationExceptionHandler : IExceptionHandler
         if (exception is not ValidationException validationException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class ValidationExceptionHandler : IExceptionHandler
                 detail = validationException.Message,
                 instance = httpContext.Request.Path,
                 errorCode = ValidationException.ErrorCode,
-                errorMessage = validationException.Message
+                errorMessage = validationException.Message,
+                correlationId
             },
             cancellationToken);
 

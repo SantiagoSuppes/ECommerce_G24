@@ -14,6 +14,8 @@ public class DuplicateEmailExceptionHandler : IExceptionHandler
         if (exception is not DuplicateEmailException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.Conflict;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class DuplicateEmailExceptionHandler : IExceptionHandler
                 detail = DuplicateEmailException.ErrorMessage,
                 instance = httpContext.Request.Path,
                 errorCode = DuplicateEmailException.ErrorCode,
-                errorMessage = DuplicateEmailException.ErrorMessage
+                errorMessage = DuplicateEmailException.ErrorMessage,
+                correlationId
             },
             cancellationToken);
 

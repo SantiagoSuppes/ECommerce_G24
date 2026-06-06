@@ -14,6 +14,8 @@ public class UserBlockedExceptionHandler : IExceptionHandler
         if (exception is not UserBlockedException userBlockedException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class UserBlockedExceptionHandler : IExceptionHandler
                 detail = userBlockedException.Message,
                 instance = httpContext.Request.Path,
                 errorCode = UserBlockedException.ErrorCode,
-                errorMessage = userBlockedException.Message
+                errorMessage = userBlockedException.Message,
+                correlationId
             },
             cancellationToken);
 

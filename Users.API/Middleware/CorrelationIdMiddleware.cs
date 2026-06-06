@@ -1,6 +1,6 @@
 ﻿using Serilog.Context;
 
-namespace ECommerce_G24.Products.API.Middleware
+namespace Users.API.Middleware
 {
     // Middleware para generar o reutilizar el X-Correlation-Id del request.
     public class CorrelationIdMiddleware

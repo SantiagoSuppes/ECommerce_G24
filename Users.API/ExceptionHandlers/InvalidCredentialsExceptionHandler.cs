@@ -14,6 +14,8 @@ public class InvalidCredentialsExceptionHandler : IExceptionHandler
         if (exception is not InvalidCredentialsException)
             return false;
 
+        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+
         httpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
         httpContext.Response.ContentType = "application/json";
 
@@ -26,7 +28,8 @@ public class InvalidCredentialsExceptionHandler : IExceptionHandler
                 detail = InvalidCredentialsException.ErrorMessage,
                 instance = httpContext.Request.Path,
                 errorCode = InvalidCredentialsException.ErrorCode,
-                errorMessage = InvalidCredentialsException.ErrorMessage
+                errorMessage = InvalidCredentialsException.ErrorMessage,
+                correlationId
             },
             cancellationToken);
 

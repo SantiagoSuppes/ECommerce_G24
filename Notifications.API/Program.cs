@@ -1,95 +1,115 @@
-using Serilog;
-using Microsoft.OpenApi;
 using ECommerce_G24.Notifications.API.ExceptionHandlers;
-using ECommerce_G24.Notifications.API.Services;
 using ECommerce_G24.Notifications.API.Middleware;
+using ECommerce_G24.Notifications.API.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.OpenApi;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Serilog
-builder.Host.UseSerilog((context, services, configuration) =>
+// Configuración de Serilog.
+// Se escribe en consola y en archivo JSON estructurado.
+builder.Host.UseSerilog((context, configuration) =>
+{
     configuration
         .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.WithProperty("Application", "Notifications.API")
-        .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName)
-);
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Servicio", "Notifications.API")
+        .WriteTo.Console()
+        .WriteTo.File(
+            path: "logs/notifications-api-.json",
+            rollingInterval: RollingInterval.Day,
+            formatter: new Serilog.Formatting.Json.JsonFormatter());
+});
 
-// Agregar servicios
+// Se agregan controllers.
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
 
-// Configurar Swagger con XML Comments
+// Se agregan servicios para Swagger.
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Notifications API",
         Version = "v1",
-        Description = "API REST para la gestión de notificaciones en el e-commerce",
-        Contact = new OpenApiContact
-        {
-            Name = "ECommerce G24 Team",
-            Email = "support@ecommerce.com"
-        }
+        Description = "Microservicio para administrar notificaciones del e-commerce."
     });
-
-    // Agregar soporte para XML comments
-    var xmlFile = Path.Combine(AppContext.BaseDirectory, "ECommerce_G24.xml");
-    if (File.Exists(xmlFile))
-    {
-        options.IncludeXmlComments(xmlFile);
-    }
 });
 
-// Registrar servicios
+// Se registra la capa de servicios.
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-// Configurar Exception Handlers
+// Se registran los exception handlers.
 builder.Services.AddExceptionHandler<UserNotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<InternalServerExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// Configurar CORS (opcional pero recomendado)
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+// Se agregan health checks.
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Usar el middleware de Exception Handler
-app.UseExceptionHandler();
-
-// Usar Correlation ID middleware
-app.UseCorrelationId();
-
-// Pipeline HTTP
+// Swagger disponible en /swagger.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Notifications API v1");
-        options.RoutePrefix = "swagger"; 
-    });
+    app.UseSwaggerUI();
 }
+
+// Middleware para manejar X-Correlation-Id.
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Logging automático de inicio y fin de cada request con duración.
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} respondió {StatusCode} en {Elapsed:0.0000} ms";
+});
+
+// Manejo global de errores con IExceptionHandler.
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAll");
-
 app.MapControllers();
 
-// Logging de inicio exitoso
-app.Logger.LogInformation("Notifications API iniciada correctamente en ambiente: {Environment}", 
-    app.Environment.EnvironmentName);
+// Health check general.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString()
+        });
+    }
+});
+
+// Health check de readiness.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString()
+        });
+    }
+});
+
+// Health check de liveness.
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString()
+        });
+    }
+});
 
 app.Run();

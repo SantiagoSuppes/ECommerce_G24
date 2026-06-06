@@ -1,5 +1,3 @@
-using Swashbuckle.AspNetCore.Filters;
-
 namespace ECommerce_G24.Notifications.API.Dtos;
 
 /// <summary>

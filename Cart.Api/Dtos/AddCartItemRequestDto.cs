@@ -6,7 +6,7 @@ namespace ECommerce_G24.Cart.API.Dtos
     public class AddCartItemRequestDto
     {
         // Producto que se quiere agregar.
-        [Required]
+        [Required(ErrorMessage = "El producto es obligatorio.")]
         public Guid ProductoId { get; set; }
 
         // Cantidad a agregar.

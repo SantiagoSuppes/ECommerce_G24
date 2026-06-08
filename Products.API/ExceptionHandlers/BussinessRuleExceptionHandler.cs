@@ -1,6 +1,7 @@
 ﻿using ECommerce_G24.Products.API.Dtos;
 using ECommerce_G24.Products.API.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using Serilog.Context;
 namespace ECommerce_G24.Products.API.ExceptionHandlers
 {
     // Handler global para errores 409 por reglas de negocio.
@@ -18,17 +19,16 @@ namespace ECommerce_G24.Products.API.ExceptionHandlers
             Exception exception,
             CancellationToken cancellationToken)
         {
+            // Si la excepción no es BusinessRuleException, este handler no la procesa.
             if (exception is not BusinessRuleException ex)
                 return false;
 
-            var correlationId = context.Response.Headers["X-Correlation-Id"].FirstOrDefault();
+            var correlationId = ExceptionHandlerHelper.GetCorrelationId(context);
 
-            _logger.LogWarning(
-                exception,
-                "Regla de negocio incumplida {ErrorCode} en {Endpoint}. CorrelationId: {CorrelationId}",
-                ex.ErrorCode,
-                context.Request.Path,
-                correlationId);
+            using (LogContext.PushProperty("errorCode", ex.ErrorCode))
+            {
+                _logger.LogWarning(exception, "Regla de negocio incumplida. ErrorCode: {ErrorCode}", ex.ErrorCode);
+            }
 
             context.Response.StatusCode = StatusCodes.Status409Conflict;
 
@@ -36,8 +36,10 @@ namespace ECommerce_G24.Products.API.ExceptionHandlers
             {
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.5.9",
                 Title = "Conflict",
-                Status = 409,
-                Detail = "No se puede completar la operación solicitada.",
+                Status = StatusCodes.Status409Conflict,
+                Detail = ex.ErrorCode == ProductErrorCodes.ProductWithActiveOrders
+                    ? "No se puede eliminar el recurso."
+                    : "Ya existe un recurso con esos datos.",
                 Instance = context.Request.Path,
                 ErrorCode = ex.ErrorCode,
                 ErrorMessage = ex.Message,

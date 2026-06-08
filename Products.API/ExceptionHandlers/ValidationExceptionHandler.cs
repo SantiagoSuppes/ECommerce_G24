@@ -1,6 +1,7 @@
 ﻿using ECommerce_G24.Products.API.Dtos;
 using ECommerce_G24.Products.API.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using Serilog.Context;
 
 namespace ECommerce_G24.Products.API.ExceptionHandlers
 {
@@ -20,17 +21,15 @@ namespace ECommerce_G24.Products.API.ExceptionHandlers
             Exception exception,
             CancellationToken cancellationToken)
         {
+            // Si la excepción no es ValidationException, este handler no la procesa.
             if (exception is not ValidationException ex)
                 return false;
 
-            var correlationId = context.Response.Headers["X-Correlation-Id"].FirstOrDefault();
-
-            _logger.LogWarning(
-                exception,
-                "Error de validación {ErrorCode} en {Endpoint}. CorrelationId: {CorrelationId}",
-                ex.ErrorCode,
-                context.Request.Path,
-                correlationId);
+            var correlationId = ExceptionHandlerHelper.GetCorrelationId(context);
+            using (LogContext.PushProperty("errorCode", ex.ErrorCode))
+            {
+                _logger.LogWarning(exception, "Datos inválidos. ErrorCode: {ErrorCode}", ex.ErrorCode);
+            }
 
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
 
@@ -38,7 +37,7 @@ namespace ECommerce_G24.Products.API.ExceptionHandlers
             {
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
                 Title = "Bad Request",
-                Status = 400,
+                Status = StatusCodes.Status400BadRequest,
                 Detail = "La solicitud contiene datos inválidos.",
                 Instance = context.Request.Path,
                 ErrorCode = ex.ErrorCode,

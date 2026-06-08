@@ -1,6 +1,7 @@
 ﻿using ECommerce_G24.Products.API.Dtos;
 using ECommerce_G24.Products.API.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using Serilog.Context;
 
 namespace ECommerce_G24.Products.API.ExceptionHandlers
 {
@@ -19,17 +20,17 @@ namespace ECommerce_G24.Products.API.ExceptionHandlers
             Exception exception,
             CancellationToken cancellationToken)
         {
+            // Si la excepción no es NotFoundException, este handler no la procesa.
             if (exception is not NotFoundException ex)
                 return false;
 
-            var correlationId = context.Response.Headers["X-Correlation-Id"].FirstOrDefault();
+            var correlationId = ExceptionHandlerHelper.GetCorrelationId(context);
 
-            _logger.LogWarning(
-                exception,
-                "Error controlado {ErrorCode} en {Endpoint}. CorrelationId: {CorrelationId}",
-                ex.ErrorCode,
-                context.Request.Path,
-                correlationId);
+            // Se agrega el errorCode al contexto de logs.
+            using (LogContext.PushProperty("errorCode", ex.ErrorCode))
+            {
+                _logger.LogWarning(exception, "Recurso no encontrado. ErrorCode: {ErrorCode}", ex.ErrorCode);
+            }
 
             context.Response.StatusCode = StatusCodes.Status404NotFound;
 
@@ -37,7 +38,7 @@ namespace ECommerce_G24.Products.API.ExceptionHandlers
             {
                 Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
                 Title = "Not Found",
-                Status = 404,
+                Status = StatusCodes.Status404NotFound,
                 Detail = "El recurso solicitado no fue encontrado.",
                 Instance = context.Request.Path,
                 ErrorCode = ex.ErrorCode,

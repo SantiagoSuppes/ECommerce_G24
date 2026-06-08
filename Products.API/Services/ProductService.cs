@@ -1,168 +1,137 @@
 ﻿using ECommerce_G24.Products.API.Dtos;
 using ECommerce_G24.Products.API.Exceptions;
 using ECommerce_G24.Products.API.Models;
+using ECommerce_G24.Products.API.Repositories;
 
 namespace ECommerce_G24.Products.API.Services
 {
     // Servicio que contiene la lógica de negocio de productos.
     public class ProductService : IProductService
     {
-        // Lista en memoria usada como persistencia temporal.
-        private static readonly List<Product> Products = new();
-
+        private readonly IProductRepository _repository;
         private readonly ILogger<ProductService> _logger;
 
-        public ProductService(ILogger<ProductService> logger)
+        public ProductService(
+            IProductRepository repository, 
+            ILogger<ProductService> logger)
         {
+            _repository = repository;   
             _logger = logger;
         }
 
-        // Lista todos los productos y aplica filtros opcionales por nombre y categoría.
-        public Task<IEnumerable<ProductResponseDto>> GetAllAsync(string? nombre, string? categoria)
+        public async Task<IEnumerable<ProductResponseDto>> GetAllAsync(string? nombre, string? categoria)
         {
-            IEnumerable<Product> query = Products;
+            // Lista productos con filtros opcionales por nombre y categoría.
+            var products = await _repository.GetAllAsync(nombre, categoria);
 
-            if (!string.IsNullOrWhiteSpace(nombre))
-            {
-                query = query.Where(p =>
-                    p.Nombre.Contains(nombre, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrWhiteSpace(categoria))
-            {
-                query = query.Where(p =>
-                    p.Categoria.Equals(categoria, StringComparison.OrdinalIgnoreCase));
-            }
-
-            var response = query.Select(MapToResponse);
-
-            return Task.FromResult(response);
+            return products.Select(MapToResponse);
         }
 
-        // Busca un producto por ID. Si no existe, lanza PRD-001.
-        public Task<ProductResponseDto> GetByIdAsync(Guid id)
+        public async Task<ProductResponseDto> GetByIdAsync(Guid id)
         {
-            var product = Products.FirstOrDefault(p => p.Id == id);
+            // Busca el producto por ID.
+            var product = await _repository.GetByIdAsync(id);
 
+            // Si no existe, corresponde PRD-001.
             if (product is null)
-                throw new NotFoundException("PRD-001", "Producto no encontrado.");
+                throw new NotFoundException(
+                    ProductErrorCodes.ProductNotFound,
+                    "Producto no encontrado.");
 
-            return Task.FromResult(MapToResponse(product));
+            return MapToResponse(product);
         }
 
-        // Crea un producto. Valida datos y evita duplicados por nombre + categoría.
-        public Task<ProductResponseDto> CreateAsync(CreateProductRequestDto request)
+        public async Task<ProductResponseDto> CreateAsync(CreateProductRequestDto request)
         {
-            ValidateCreateRequest(request);
+            // Valida duplicado por nombre + categoría.
+            // Si ya existe, corresponde PRD-003.
+            var existingProduct = await _repository.GetByNameAndCategoryAsync(
+                request.Nombre,
+                request.Categoria);
 
-            var duplicate = Products.Any(p =>
-                p.Nombre.Equals(request.Nombre.Trim(), StringComparison.OrdinalIgnoreCase)
-                && p.Categoria.Equals(request.Categoria.Trim(), StringComparison.OrdinalIgnoreCase));
-
-            if (duplicate)
-            {
+            if (existingProduct is not null)
                 throw new BusinessRuleException(
-                    "PRD-003",
+                    ProductErrorCodes.DuplicateProduct,
                     $"Ya existe un producto con ese nombre en la categoría '{request.Categoria}'.");
-            }
 
+            // Crea la entidad de dominio.
             var product = new Product
             {
+                Id = Guid.NewGuid(),
                 Nombre = request.Nombre.Trim(),
                 Descripcion = request.Descripcion?.Trim(),
                 Precio = request.Precio,
                 Stock = request.Stock,
-                Categoria = request.Categoria.Trim()
+                Categoria = request.Categoria.Trim(),
+                FechaCreacion = DateTime.UtcNow
             };
 
-            Products.Add(product);
+            var createdProduct = await _repository.CreateAsync(product);
 
             _logger.LogInformation(
                 "Producto creado correctamente. ProductId: {ProductId}",
-                product.Id);
+                createdProduct.Id);
 
-            return Task.FromResult(MapToResponse(product));
+            return MapToResponse(createdProduct);
         }
 
-        // Actualiza un producto existente. Si no existe, lanza PRD-001.
-        public Task<ProductResponseDto> UpdateAsync(Guid id, UpdateProductRequestDto request)
+        public async Task<ProductResponseDto> UpdateAsync(Guid id, UpdateProductRequestDto request)
         {
-            ValidateUpdateRequest(request);
-
-            var product = Products.FirstOrDefault(p => p.Id == id);
+            // Verifica si el producto existe.
+            var product = await _repository.GetByIdAsync(id);
 
             if (product is null)
-                throw new NotFoundException("PRD-001", "Producto no encontrado.");
+                throw new NotFoundException(
+                    ProductErrorCodes.ProductNotFound,
+                    "Producto no encontrado.");
 
+            // Si se intenta actualizar a un nombre/categoría que ya usa otro producto,
+            // se evita el duplicado.
+            var existingProduct = await _repository.GetByNameAndCategoryAsync(
+                request.Nombre,
+                request.Categoria);
+
+            if (existingProduct is not null && existingProduct.Id != id)
+                throw new BusinessRuleException(
+                    ProductErrorCodes.DuplicateProduct,
+                    $"Ya existe un producto con ese nombre en la categoría '{request.Categoria}'.");
+
+            // Se actualizan solo los campos editables.
             product.Nombre = request.Nombre.Trim();
             product.Descripcion = request.Descripcion?.Trim();
             product.Precio = request.Precio;
             product.Stock = request.Stock;
             product.Categoria = request.Categoria.Trim();
 
+            var updatedProduct = await _repository.UpdateAsync(product);
+
             _logger.LogInformation(
                 "Producto actualizado correctamente. ProductId: {ProductId}",
-                product.Id);
+                updatedProduct.Id);
 
-            return Task.FromResult(MapToResponse(product));
+            return MapToResponse(updatedProduct);
         }
 
-        // Elimina un producto. Si no existe, lanza PRD-001.
-        public Task DeleteAsync(Guid id)
+        public async Task DeleteAsync(Guid id)
         {
-            var product = Products.FirstOrDefault(p => p.Id == id);
+            // Verifica si el producto existe.
+            var product = await _repository.GetByIdAsync(id);
 
             if (product is null)
-                throw new NotFoundException("PRD-001", "Producto no encontrado.");
+                throw new NotFoundException(
+                    ProductErrorCodes.ProductNotFound,
+                    "Producto no encontrado.");
 
-            // En una versión integrada con Orders.API, acá se debería consultar
-            // si el producto tiene órdenes activas en estado Pendiente o Confirmada.
-            // Si tiene órdenes activas, se debe lanzar PRD-004.
-            //
-            // throw new BusinessRuleException(
-            //     "PRD-004",
-            //     "El producto tiene órdenes activas y no puede eliminarse.");
-
-            Products.Remove(product);
+            await _repository.DeleteAsync(id);
 
             _logger.LogInformation(
                 "Producto eliminado correctamente. ProductId: {ProductId}",
                 id);
-
-            return Task.CompletedTask;
         }
 
-        // Valida los datos del request de creación.
-        private static void ValidateCreateRequest(CreateProductRequestDto request)
-        {
-            if (string.IsNullOrWhiteSpace(request.Nombre)
-                || string.IsNullOrWhiteSpace(request.Categoria)
-                || request.Precio <= 0
-                || request.Stock < 0)
-            {
-                throw new ValidationException(
-                    "PRD-002",
-                    "Los datos del producto son inválidos.");
-            }
-        }
-
-        // Valida los datos del request de actualización.
-        private static void ValidateUpdateRequest(UpdateProductRequestDto request)
-        {
-            if (string.IsNullOrWhiteSpace(request.Nombre)
-                || string.IsNullOrWhiteSpace(request.Categoria)
-                || request.Precio <= 0
-                || request.Stock < 0)
-            {
-                throw new ValidationException(
-                    "PRD-002",
-                    "Los datos del producto son inválidos.");
-            }
-        }
-
-        // Convierte una entidad Product en un DTO de respuesta.
         private static ProductResponseDto MapToResponse(Product product)
         {
+            // Mapea la entidad de dominio al DTO de salida.
             return new ProductResponseDto
             {
                 Id = product.Id,

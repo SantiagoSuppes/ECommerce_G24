@@ -1,5 +1,7 @@
-﻿using ECommerce_G24.Cart.API.Exceptions;
+﻿using ECommerce_G24.Cart.API.Dtos;
+using ECommerce_G24.Cart.API.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using Serilog.Context;
 
 namespace ECommerce_G24.Cart.API.ExceptionHandlers
 {
@@ -7,6 +9,12 @@ namespace ECommerce_G24.Cart.API.ExceptionHandlers
     // En Cart.API el caso principal es stock insuficiente.
     public class BusinessRuleExceptionHandler : IExceptionHandler
     {
+        private readonly ILogger<BusinessRuleExceptionHandler> _logger;
+
+        public BusinessRuleExceptionHandler(ILogger<BusinessRuleExceptionHandler> logger)
+        {
+            _logger = logger;
+        }
         public async ValueTask<bool> TryHandleAsync(
             HttpContext context,
             Exception exception,
@@ -15,22 +23,26 @@ namespace ECommerce_G24.Cart.API.ExceptionHandlers
             if (exception is not BusinessRuleException ex)
                 return false;
 
-            var correlationId = context.Response.Headers["X-Correlation-Id"].FirstOrDefault()
-                                ?? context.TraceIdentifier;
+            var correlationId = ExceptionHandlerHelper.GetCorrelationId(context);
 
-            // CRT-003 usa HTTP 422.
+            using (LogContext.PushProperty("errorCode", ex.ErrorCode))
+            {
+                _logger.LogWarning(exception, "Regla de negocio incumplida. ErrorCode: {ErrorCode}", ex.ErrorCode);
+            }
+
+            // Para CRT-003, el TP exige HTTP 422.
             context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
 
-            await context.Response.WriteAsJsonAsync(new
+            await context.Response.WriteAsJsonAsync(new ErrorResponseDto
             {
-                type = "https://tools.ietf.org/html/rfc4918#section-11.2",
-                title = "Unprocessable Entity",
-                status = 422,
-                detail = "No se puede procesar la solicitud.",
-                instance = context.Request.Path.Value,
-                errorCode = ex.ErrorCode,
-                errorMessage = ex.Message,
-                correlationId
+                Type = "https://tools.ietf.org/html/rfc4918#section-11.2",
+                Title = "Unprocessable Entity",
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Detail = "No se puede procesar la solicitud.",
+                Instance = context.Request.Path,
+                ErrorCode = ex.ErrorCode,
+                ErrorMessage = ex.Message,
+                CorrelationId = correlationId
             }, cancellationToken);
 
             return true;

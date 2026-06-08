@@ -6,12 +6,12 @@ namespace ECommerce_G24.Cart.API.Controller
 {
     [ApiController]
     [Route("api/cart")]
+    [Produces("application/json")]
     [Tags("Cart")]
     public class CartController : ControllerBase
     {
         private readonly ICartService _cartService;
 
-        // Inyectamos el servicio.
         public CartController(ICartService cartService)
         {
             _cartService = cartService;
@@ -42,7 +42,7 @@ namespace ECommerce_G24.Cart.API.Controller
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<CartResponseDto>> AddItem(
             Guid userId,
-            [FromBody] AddCartItemRequestDto request)
+            AddCartItemRequestDto request)
         {
             var cart = await _cartService.AddItemAsync(userId, request);
 
@@ -61,7 +61,7 @@ namespace ECommerce_G24.Cart.API.Controller
         public async Task<ActionResult<CartResponseDto>> UpdateItem(
             Guid userId,
             Guid productId,
-            [FromBody] UpdateCartItemRequestDto request)
+            UpdateCartItemRequestDto request)
         {
             var cart = await _cartService.UpdateItemAsync(userId, productId, request);
 

@@ -7,6 +7,7 @@ namespace ECommerce_G24.Products.API.Controllers
     // Controlador REST para administrar productos.
     [ApiController]
     [Route("api/products")]
+    [Produces("application/json")]
     [Tags("Products")]
     public class ProductsController : ControllerBase
     {
@@ -27,6 +28,7 @@ namespace ECommerce_G24.Products.API.Controllers
             [FromQuery] string? nombre,
             [FromQuery] string? categoria)
         {
+            // El servicio aplica los filtros opcionales.
             var products = await _productService.GetAllAsync(nombre, categoria);
             return Ok(products);
         }
@@ -39,6 +41,7 @@ namespace ECommerce_G24.Products.API.Controllers
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<ProductResponseDto>> GetById(Guid id)
         {
+            // Si el producto no existe, el servicio lanza NotFoundException.
             var product = await _productService.GetByIdAsync(id);
             return Ok(product);
         }
@@ -50,15 +53,15 @@ namespace ECommerce_G24.Products.API.Controllers
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status409Conflict)]
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ProductResponseDto>> Create(
-            [FromBody] CreateProductRequestDto request)
+        public async Task<ActionResult<ProductResponseDto>> Create(CreateProductRequestDto request)
         {
-            var product = await _productService.CreateAsync(request);
+            // Si hay duplicado por nombre y categoría, el servicio lanza BusinessRuleException PRD-003.
+            var createdProduct = await _productService.CreateAsync(request);
 
             return CreatedAtAction(
                 nameof(GetById),
-                new { id = product.Id },
-                product);
+                new { id = createdProduct.Id },
+                createdProduct);
         }
 
         // PUT /api/products/{id}
@@ -69,11 +72,13 @@ namespace ECommerce_G24.Products.API.Controllers
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<ProductResponseDto>> Update(
-            Guid id,
-            [FromBody] UpdateProductRequestDto request)
+        Guid id,
+        UpdateProductRequestDto request)
         {
-            var product = await _productService.UpdateAsync(id, request);
-            return Ok(product);
+            // Si el producto no existe, el servicio lanza NotFoundException PRD-001.
+            var updatedProduct = await _productService.UpdateAsync(id, request);
+
+            return Ok(updatedProduct);
         }
 
         // DELETE /api/products/{id}
@@ -85,6 +90,7 @@ namespace ECommerce_G24.Products.API.Controllers
         [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Delete(Guid id)
         {
+            // Si tiene órdenes activas, el servicio lanza BusinessRuleException PRD-004.
             await _productService.DeleteAsync(id);
             return NoContent();
         }

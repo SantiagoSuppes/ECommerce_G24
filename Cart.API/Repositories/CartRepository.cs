@@ -159,7 +159,7 @@ namespace ECommerce_G24.Cart.API.Repositories
             });
         }
 
-        public async Task RemoveItemAsync(Guid userId, Guid productId)
+        public async Task DeleteItemAsync(Guid userId, Guid productId)
         {
             using var connection = CreateConnection();
 

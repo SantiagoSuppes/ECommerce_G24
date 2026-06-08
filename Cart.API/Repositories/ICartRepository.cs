@@ -17,7 +17,7 @@ namespace ECommerce_G24.Cart.API.Repositories
 
         Task UpdateItemAsync(Guid userId, Guid productId, int quantity, DateTime updatedAt);
 
-        Task RemoveItemAsync(Guid userId, Guid productId);
+        Task DeleteItemAsync(Guid userId, Guid productId);
 
         Task ClearCartAsync(Guid userId);
     }

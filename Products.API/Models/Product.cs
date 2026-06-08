@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ECommerce_G24.Products.API.Models
 {
@@ -8,25 +7,31 @@ namespace ECommerce_G24.Products.API.Models
         public class Product
         {
             // Identificador único del producto.
-            public Guid Id { get; init; } = Guid.NewGuid();
+            public Guid Id { get; init; }
 
-            // Nombre del producto.
+            // Nombre del producto. Obligatorio y Maximo 100 caracteres
+            [Required]
+            [MaxLength(100)]
             public string Nombre { get; set; } = string.Empty;
 
-            // Descripción del producto.
+            // Descripción del producto. Maximo 500 caracteres
+            [MaxLength(500)]
             public string? Descripcion { get; set; }
 
-            // Precio del producto.
+            // Precio del producto. Mayor a 0.
+            [Range(0.01, double.MaxValue)]
             public decimal Precio { get; set; }
 
-            // Stock disponible.
+            // Stock obligatorio. Debe ser mayor o igual a cero.
+            [Range(0, int.MaxValue)]
             public int Stock { get; set; }
 
-            // Categoría del producto.
+            // Categoría obligatoria. El TP aclara que no hace falta validar contra una lista cerrada.
+            [Required]
             public string Categoria { get; set; } = string.Empty;
 
-            // Fecha de creación.
-            public DateTime FechaCreacion { get; init; } = DateTime.UtcNow;
+            // Fecha asignada automáticamente al momento de crear el producto.
+            public DateTime FechaCreacion { get; set; }
         }
 }
 

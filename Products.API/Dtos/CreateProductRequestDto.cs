@@ -1,6 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Globalization;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ECommerce_G24.Products.API.Dtos
 {

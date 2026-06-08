@@ -15,15 +15,19 @@ namespace ECommerce_G24.Cart.API.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            // Si el request ya viene con X-Correlation-Id,se usa ese sino generamos uno nuevo.
-            var correlationId = context.Request.Headers.TryGetValue(HeaderName, out var value)
-                ? value.ToString()
+            // Si el request ya trae un X-Correlation-Id, se reutiliza.
+            // Si no lo trae, se genera uno nuevo.
+            var correlationId = context.Request.Headers.TryGetValue(HeaderName, out var existingCorrelationId)
+                ? existingCorrelationId.ToString()
                 : Guid.NewGuid().ToString();
 
-            // Lo agregamos a la respuesta.
+            // Se guarda para que lo puedan usar handlers, logs y clientes HTTP.
+            context.Items[HeaderName] = correlationId;
+
+            // También se devuelve en la respuesta.
             context.Response.Headers[HeaderName] = correlationId;
 
-            // Lo agregamos al contexto de Serilog para que aparezca en los logs.
+            // Se agrega como propiedad estructurada en Serilog.
             using (LogContext.PushProperty("CorrelationId", correlationId))
             {
                 await _next(context);

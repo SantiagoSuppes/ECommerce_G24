@@ -1,10 +1,12 @@
 ﻿using Cart.API.Cart.API.Model;
 using CartModel = Cart.API.Cart.API.Model.Cart;
-using Microsoft.Data.Sqlite;
 using Dapper;
+using Microsoft.Data.Sqlite;
+using System.Globalization;
 
 namespace Cart.API.Cart.API.Repositories
 {
+    /// <summary>
     /// Implementación SQLite + Dapper del repositorio de carritos.
     /// </summary>
     public class CartRepository : ICartRepository
@@ -30,14 +32,14 @@ namespace Cart.API.Cart.API.Repositories
             using var connection = CreateConnection();
 
             var items = (await connection.QueryAsync<CartItemRecord>("""
-        SELECT
-            producto_id AS ProductoId,
-            cantidad AS Cantidad,
-            fecha_actualizacion AS FechaActualizacion
-        FROM cart_items
-        WHERE usuario_id = @UsuarioId
-        ORDER BY fecha_actualizacion DESC;
-    """, new
+                SELECT
+                    producto_id AS ProductoId,
+                    cantidad AS Cantidad,
+                    fecha_actualizacion AS FechaActualizacion
+                FROM cart_items
+                WHERE usuario_id = @UsuarioId
+                ORDER BY fecha_actualizacion DESC;
+            """, new
             {
                 UsuarioId = userId.ToString()
             })).ToList();
@@ -45,15 +47,24 @@ namespace Cart.API.Cart.API.Repositories
             if (items.Count == 0)
                 return null;
 
+            var cartItems = items.Select(item => new CartItem
+            {
+                ProductoId = Guid.Parse(item.ProductoId),
+                Cantidad = item.Cantidad
+            }).ToList();
+
+            var ultimaFechaActualizacion = items
+                .Select(item => DateTime.Parse(
+                    item.FechaActualizacion,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind))
+                .Max();
+
             return new CartModel
             {
                 UsuarioId = userId,
-                Items = items.Select(x => new CartItem
-                {
-                    ProductoId = x.ProductoId,
-                    Cantidad = x.Cantidad
-                }).ToList(),
-                FechaActualizacion = items.Max(x => x.FechaActualizacion)
+                Items = cartItems,
+                FechaActualizacion = ultimaFechaActualizacion
             };
         }
 
@@ -62,10 +73,10 @@ namespace Cart.API.Cart.API.Repositories
             using var connection = CreateConnection();
 
             var count = await connection.ExecuteScalarAsync<int>("""
-            SELECT COUNT(1)
-            FROM cart_items
-            WHERE usuario_id = @UsuarioId;
-        """, new
+                SELECT COUNT(1)
+                FROM cart_items
+                WHERE usuario_id = @UsuarioId;
+            """, new
             {
                 UsuarioId = userId.ToString()
             });
@@ -78,11 +89,11 @@ namespace Cart.API.Cart.API.Repositories
             using var connection = CreateConnection();
 
             var count = await connection.ExecuteScalarAsync<int>("""
-            SELECT COUNT(1)
-            FROM cart_items
-            WHERE usuario_id = @UsuarioId
-              AND producto_id = @ProductoId;
-        """, new
+                SELECT COUNT(1)
+                FROM cart_items
+                WHERE usuario_id = @UsuarioId
+                  AND producto_id = @ProductoId;
+            """, new
             {
                 UsuarioId = userId.ToString(),
                 ProductoId = productId.ToString()
@@ -96,66 +107,72 @@ namespace Cart.API.Cart.API.Repositories
             using var connection = CreateConnection();
 
             return await connection.QuerySingleOrDefaultAsync<int?>("""
-            SELECT cantidad
-            FROM cart_items
-            WHERE usuario_id = @UsuarioId
-              AND producto_id = @ProductoId;
-        """, new
+                SELECT cantidad
+                FROM cart_items
+                WHERE usuario_id = @UsuarioId
+                  AND producto_id = @ProductoId;
+            """, new
             {
                 UsuarioId = userId.ToString(),
                 ProductoId = productId.ToString()
             });
         }
 
-        public async Task UpsertItemAsync(Guid userId, Guid productId, int quantity, DateTime updatedAt)
+        public async Task UpsertItemAsync(
+            Guid userId,
+            Guid productId,
+            int quantity,
+            DateTime updatedAt)
         {
             using var connection = CreateConnection();
 
-            // Si el item no existe, lo inserta.
-            // Si ya existe, actualiza la cantidad.
             await connection.ExecuteAsync("""
-            INSERT INTO cart_items (
-                usuario_id,
-                producto_id,
-                cantidad,
-                fecha_actualizacion
-            )
-            VALUES (
-                @UsuarioId,
-                @ProductoId,
-                @Cantidad,
-                @FechaActualizacion
-            )
-            ON CONFLICT(usuario_id, producto_id)
-            DO UPDATE SET
-                cantidad = excluded.cantidad,
-                fecha_actualizacion = excluded.fecha_actualizacion;
-        """, new
+                INSERT INTO cart_items (
+                    usuario_id,
+                    producto_id,
+                    cantidad,
+                    fecha_actualizacion
+                )
+                VALUES (
+                    @UsuarioId,
+                    @ProductoId,
+                    @Cantidad,
+                    @FechaActualizacion
+                )
+                ON CONFLICT(usuario_id, producto_id)
+                DO UPDATE SET
+                    cantidad = excluded.cantidad,
+                    fecha_actualizacion = excluded.fecha_actualizacion;
+            """, new
             {
                 UsuarioId = userId.ToString(),
                 ProductoId = productId.ToString(),
                 Cantidad = quantity,
-                FechaActualizacion = updatedAt
+                FechaActualizacion = updatedAt.ToString("O", CultureInfo.InvariantCulture)
             });
         }
 
-        public async Task UpdateItemAsync(Guid userId, Guid productId, int quantity, DateTime updatedAt)
+        public async Task UpdateItemAsync(
+            Guid userId,
+            Guid productId,
+            int quantity,
+            DateTime updatedAt)
         {
             using var connection = CreateConnection();
 
             await connection.ExecuteAsync("""
-            UPDATE cart_items
-            SET
-                cantidad = @Cantidad,
-                fecha_actualizacion = @FechaActualizacion
-            WHERE usuario_id = @UsuarioId
-              AND producto_id = @ProductoId;
-        """, new
+                UPDATE cart_items
+                SET
+                    cantidad = @Cantidad,
+                    fecha_actualizacion = @FechaActualizacion
+                WHERE usuario_id = @UsuarioId
+                  AND producto_id = @ProductoId;
+            """, new
             {
                 UsuarioId = userId.ToString(),
                 ProductoId = productId.ToString(),
                 Cantidad = quantity,
-                FechaActualizacion = updatedAt
+                FechaActualizacion = updatedAt.ToString("O", CultureInfo.InvariantCulture)
             });
         }
 
@@ -164,10 +181,10 @@ namespace Cart.API.Cart.API.Repositories
             using var connection = CreateConnection();
 
             await connection.ExecuteAsync("""
-            DELETE FROM cart_items
-            WHERE usuario_id = @UsuarioId
-              AND producto_id = @ProductoId;
-        """, new
+                DELETE FROM cart_items
+                WHERE usuario_id = @UsuarioId
+                  AND producto_id = @ProductoId;
+            """, new
             {
                 UsuarioId = userId.ToString(),
                 ProductoId = productId.ToString()
@@ -179,9 +196,9 @@ namespace Cart.API.Cart.API.Repositories
             using var connection = CreateConnection();
 
             await connection.ExecuteAsync("""
-            DELETE FROM cart_items
-            WHERE usuario_id = @UsuarioId;
-        """, new
+                DELETE FROM cart_items
+                WHERE usuario_id = @UsuarioId;
+            """, new
             {
                 UsuarioId = userId.ToString()
             });
@@ -189,14 +206,16 @@ namespace Cart.API.Cart.API.Repositories
 
         /// <summary>
         /// Clase auxiliar para mapear filas de SQLite.
+        /// SQLite guarda Guid y DateTime como TEXT, por eso primero se leen como string
+        /// y luego se convierten manualmente.
         /// </summary>
         private class CartItemRecord
         {
-            public Guid ProductoId { get; set; }
+            public string ProductoId { get; set; } = string.Empty;
 
             public int Cantidad { get; set; }
 
-            public DateTime FechaActualizacion { get; set; }
+            public string FechaActualizacion { get; set; } = string.Empty;
         }
     }
 }

@@ -32,10 +32,10 @@ namespace Cart.API.Cart.API.Database
             connection.Execute("""
             CREATE TABLE IF NOT EXISTS cart_items (
                 usuario_id TEXT NOT NULL,
-                producto_id TEXT NOT NULL,
-                cantidad INTEGER NOT NULL,
-                fecha_actualizacion TEXT NOT NULL,
-                PRIMARY KEY (usuario_id, producto_id)
+               producto_id TEXT NOT NULL,
+               cantidad INTEGER NOT NULL,
+               fecha_actualizacion TEXT NOT NULL,
+               PRIMARY KEY (usuario_id, producto_id)
             );
         """);
 

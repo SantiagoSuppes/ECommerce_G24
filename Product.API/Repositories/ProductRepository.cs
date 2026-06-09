@@ -1,9 +1,10 @@
-﻿using ECommerce_G24.Products.API.Models;
+﻿using Dapper;
+using ECommerce_G24.Products.API.Models;
 using Microsoft.Data.Sqlite;
-using Dapper;
 
 namespace ECommerce_G24.Products.API.Repositories
 {
+    /// <summary>
     /// Implementación SQLite + Dapper del repositorio de productos.
     /// </summary>
     public class ProductRepository : IProductRepository
@@ -17,115 +18,149 @@ namespace ECommerce_G24.Products.API.Repositories
 
         private SqliteConnection CreateConnection()
         {
-            // Lee la conexión desde appsettings.json.
             var connectionString = _configuration.GetConnectionString("DefaultConnection")
                 ?? "Data Source=products.db";
 
             return new SqliteConnection(connectionString);
         }
 
+        private class ProductDbRow
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Nombre { get; set; } = string.Empty;
+            public string? Descripcion { get; set; }
+            public decimal Precio { get; set; }
+            public int Stock { get; set; }
+            public string Categoria { get; set; } = string.Empty;
+            public string FechaCreacion { get; set; } = string.Empty;
+        }
+
+        private static Product MapToProduct(ProductDbRow row)
+        {
+            return new Product
+            {
+                Id = Guid.Parse(row.Id),
+                Nombre = row.Nombre,
+                Descripcion = row.Descripcion,
+                Precio = row.Precio,
+                Stock = row.Stock,
+                Categoria = row.Categoria,
+                FechaCreacion = DateTime.Parse(row.FechaCreacion)
+            };
+        }
+
         public async Task<IEnumerable<Product>> GetAllAsync(string? nombre, string? categoria)
         {
             using var connection = CreateConnection();
 
-            // Consulta base con filtros opcionales por nombre y categoría.
-            // Los filtros salen del contrato GET /api/products?categoria=&nombre=.
-            var sql = """
-            SELECT
-                id AS Id,
-                nombre AS Nombre,
-                descripcion AS Descripcion,
-                precio AS Precio,
-                stock AS Stock,
-                categoria AS Categoria,
-                fecha_creacion AS FechaCreacion
-            FROM products
-            WHERE
-                (@Nombre IS NULL OR LOWER(nombre) LIKE '%' || LOWER(@Nombre) || '%')
-                AND
-                (@Categoria IS NULL OR LOWER(categoria) = LOWER(@Categoria))
-            ORDER BY fecha_creacion DESC;
-        """;
+            const string sql = """
+        SELECT
+            Id,
+            Nombre,
+            Descripcion,
+            Precio,
+            Stock,
+            Categoria,
+            FechaCreacion
+        FROM Products
+        WHERE (@Nombre IS NULL OR LOWER(Nombre) LIKE '%' || LOWER(@Nombre) || '%')
+          AND (@Categoria IS NULL OR LOWER(Categoria) = LOWER(@Categoria))
+        ORDER BY FechaCreacion DESC;
+    """;
 
-            return await connection.QueryAsync<Product>(sql, new
-            {
-                Nombre = string.IsNullOrWhiteSpace(nombre) ? null : nombre.Trim(),
-                Categoria = string.IsNullOrWhiteSpace(categoria) ? null : categoria.Trim()
-            });
+            var rows = await connection.QueryAsync<ProductDbRow>(
+                sql,
+                new
+                {
+                    Nombre = string.IsNullOrWhiteSpace(nombre) ? null : nombre.Trim(),
+                    Categoria = string.IsNullOrWhiteSpace(categoria) ? null : categoria.Trim()
+                }
+            );
+
+            return rows.Select(MapToProduct);
         }
 
         public async Task<Product?> GetByIdAsync(Guid id)
         {
             using var connection = CreateConnection();
 
-            var sql = """
-            SELECT
-                id AS Id,
-                nombre AS Nombre,
-                descripcion AS Descripcion,
-                precio AS Precio,
-                stock AS Stock,
-                categoria AS Categoria,
-                fecha_creacion AS FechaCreacion
-            FROM products
-            WHERE id = @Id;
-        """;
+            const string sql = """
+                SELECT
+                    Id,
+                    Nombre,
+                    Descripcion,
+                    Precio,
+                    Stock,
+                    Categoria,
+                    FechaCreacion
+                FROM Products
+                WHERE Id = @Id;
+            """;
 
-            return await connection.QuerySingleOrDefaultAsync<Product>(sql, new
-            {
-                Id = id.ToString()
-            });
+            var row = await connection.QuerySingleOrDefaultAsync<ProductDbRow>(
+                sql,
+                new { Id = id.ToString() }
+            );
+
+            return row is null ? null : MapToProduct(row);
         }
 
         public async Task<Product?> GetByNameAndCategoryAsync(string nombre, string categoria)
         {
             using var connection = CreateConnection();
 
-            var sql = """
-            SELECT
-                id AS Id,
-                nombre AS Nombre,
-                descripcion AS Descripcion,
-                precio AS Precio,
-                stock AS Stock,
-                categoria AS Categoria,
-                fecha_creacion AS FechaCreacion
-            FROM products
-            WHERE LOWER(nombre) = LOWER(@Nombre)
-              AND LOWER(categoria) = LOWER(@Categoria);
-        """;
+            const string sql = """
+                SELECT
+                    Id,
+                    Nombre,
+                    Descripcion,
+                    Precio,
+                    Stock,
+                    Categoria,
+                    FechaCreacion
+                FROM Products
+                WHERE LOWER(Nombre) = LOWER(@Nombre)
+                  AND LOWER(Categoria) = LOWER(@Categoria);
+            """;
 
-            return await connection.QuerySingleOrDefaultAsync<Product>(sql, new
-            {
-                Nombre = nombre.Trim(),
-                Categoria = categoria.Trim()
-            });
+            var row = await connection.QuerySingleOrDefaultAsync<ProductDbRow>(
+                sql,
+                new
+                {
+                    Nombre = nombre.Trim(),
+                    Categoria = categoria.Trim()
+                }
+            );
+
+            return row is null ? null : MapToProduct(row);
         }
 
         public async Task<Product> CreateAsync(Product product)
         {
             using var connection = CreateConnection();
 
-            var sql = """
-            INSERT INTO products (
-                id,
-                nombre,
-                descripcion,
-                precio,
-                stock,
-                categoria,
-                fecha_creacion
-            )
-            VALUES (
-                @Id,
-                @Nombre,
-                @Descripcion,
-                @Precio,
-                @Stock,
-                @Categoria,
-                @FechaCreacion
-            );
-        """;
+            const string sql = """
+                INSERT INTO Products
+                (
+                    Id,
+                    Nombre,
+                    Descripcion,
+                    Precio,
+                    Stock,
+                    Categoria,
+                    FechaCreacion
+                )
+                VALUES
+                (
+                    @Id,
+                    @Nombre,
+                    @Descripcion,
+                    @Precio,
+                    @Stock,
+                    @Categoria,
+                    @FechaCreacion
+                );
+            """;
 
             await connection.ExecuteAsync(sql, new
             {
@@ -135,7 +170,7 @@ namespace ECommerce_G24.Products.API.Repositories
                 product.Precio,
                 product.Stock,
                 product.Categoria,
-                FechaCreacion = product.FechaCreacion
+                FechaCreacion = product.FechaCreacion.ToString("O")
             });
 
             return product;
@@ -145,16 +180,16 @@ namespace ECommerce_G24.Products.API.Repositories
         {
             using var connection = CreateConnection();
 
-            var sql = """
-            UPDATE products
-            SET
-                nombre = @Nombre,
-                descripcion = @Descripcion,
-                precio = @Precio,
-                stock = @Stock,
-                categoria = @Categoria
-            WHERE id = @Id;
-        """;
+            const string sql = """
+                UPDATE Products
+                SET
+                    Nombre = @Nombre,
+                    Descripcion = @Descripcion,
+                    Precio = @Precio,
+                    Stock = @Stock,
+                    Categoria = @Categoria
+                WHERE Id = @Id;
+            """;
 
             await connection.ExecuteAsync(sql, new
             {
@@ -173,10 +208,10 @@ namespace ECommerce_G24.Products.API.Repositories
         {
             using var connection = CreateConnection();
 
-            var sql = """
-            DELETE FROM products
-            WHERE id = @Id;
-        """;
+            const string sql = """
+                DELETE FROM Products
+                WHERE Id = @Id;
+            """;
 
             await connection.ExecuteAsync(sql, new
             {

@@ -30,13 +30,13 @@ namespace ECommerce_G24.Products.API.Database
             // Crea la tabla principal de productos.
             connection.Execute("""
             CREATE TABLE IF NOT EXISTS products (
-                id TEXT PRIMARY KEY,
-                nombre TEXT NOT NULL,
-                descripcion TEXT NULL,
-                precio REAL NOT NULL,
-                stock INTEGER NOT NULL,
-                categoria TEXT NOT NULL,
-                fecha_creacion TEXT NOT NULL
+                Id TEXT PRIMARY KEY,
+                Nombre TEXT NOT NULL,
+                Descripcion TEXT,
+                Precio REAL NOT NULL,
+                Stock INTEGER NOT NULL,
+                Categoria TEXT NOT NULL,
+                FechaCreacion TEXT NOT NULL
             );
         """);
 

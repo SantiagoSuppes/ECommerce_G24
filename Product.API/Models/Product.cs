@@ -9,7 +9,7 @@ namespace ECommerce_G24.Products.API.Models
             // Identificador único del producto.
             public Guid Id { get; init; }
 
-            // Nombre del producto. Obligatorio y Maximo 100 caracteres
+            // Nombre del producto. Obligatorio y Maximo 100 caracteres.
             [Required]
             [MaxLength(100)]
             public string Nombre { get; set; } = string.Empty;

@@ -1,6 +1,4 @@
 using ECommerce_G24.Notifications.API.Dtos;
-using ECommerce_G24.Notifications.API.Services;
-using Notifications.API.Dtos;
 using Notifications.API.Exceptions;
 using Notifications.API.Models;
 using Notifications.API.Repositories;

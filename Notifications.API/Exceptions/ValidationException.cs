@@ -1,8 +1,18 @@
-namespace ECommerce_G24.Notifications.API.Exceptions;
+namespace Notifications.API.Exceptions;
 
+/// <summary>
+/// Excepción utilizada cuando los datos
+/// de la notificación son inválidos.
+/// </summary>
 public class ValidationException : Exception
 {
-    public ValidationException(string message) : base(message)
+    public string ErrorCode { get; }
+
+    public ValidationException(
+        string errorCode,
+        string message)
+        : base(message)
     {
+        ErrorCode = errorCode;
     }
 }

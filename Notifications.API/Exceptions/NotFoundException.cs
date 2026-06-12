@@ -1,8 +1,18 @@
-namespace ECommerce_G24.Notifications.API.Exceptions;
+namespace Notifications.API.Exceptions;
 
+/// <summary>
+/// Excepción utilizada cuando no se encuentra un usuario
+/// o no existen notificaciones registradas.
+/// </summary>
 public class NotFoundException : Exception
 {
-    public NotFoundException(string message) : base(message)
+    public string ErrorCode { get; }
+
+    public NotFoundException(
+        string errorCode,
+        string message)
+        : base(message)
     {
+        ErrorCode = errorCode;
     }
 }

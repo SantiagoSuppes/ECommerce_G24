@@ -104,6 +104,24 @@ builder.Services.AddSwaggerGen(options =>
 // Registro de dependencias de persistencia.
 builder.Services.AddSingleton<DatabaseInitializer>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddHttpClient<IOrdersClient, OrdersHttpClient>(
+    (serviceProvider, client) =>
+    {
+        var configuration =
+            serviceProvider.GetRequiredService<IConfiguration>();
+
+        var ordersApiUrl =
+            configuration["Services:OrdersApi"];
+
+        if (string.IsNullOrWhiteSpace(ordersApiUrl))
+        {
+            throw new InvalidOperationException(
+                "No se configuró la URL de Orders.API.");
+        }
+
+        client.BaseAddress = new Uri(ordersApiUrl);
+        client.Timeout = TimeSpan.FromSeconds(10);
+    });
 
 // Registro de servicios de negocio.
 builder.Services.AddScoped<IProductService, ProductService>();

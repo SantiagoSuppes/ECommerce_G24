@@ -1,6 +1,6 @@
 ﻿using ECommerce_G24.Products.API.Dtos;
 using ECommerce_G24.Products.API.Exceptions;
-using ECommerce_G24.Products.API.Models;
+using  ECommerce_G24.Products.API.Models;
 using ECommerce_G24.Products.API.Repositories;
 
 namespace ECommerce_G24.Products.API.Services
@@ -9,13 +9,16 @@ namespace ECommerce_G24.Products.API.Services
     public class ProductService : IProductService
     {
         private readonly IProductRepository _repository;
+        private readonly IOrdersClient _ordersClient;
         private readonly ILogger<ProductService> _logger;
 
         public ProductService(
-            IProductRepository repository, 
+            IProductRepository repository,
+            IOrdersClient ordersClient,
             ILogger<ProductService> logger)
         {
-            _repository = repository;   
+            _repository = repository;
+            _ordersClient = ordersClient;
             _logger = logger;
         }
 
@@ -114,13 +117,33 @@ namespace ECommerce_G24.Products.API.Services
 
         public async Task DeleteAsync(Guid id)
         {
-            // Verifica si el producto existe.
+            // Verifica primero que el producto exista.
             var product = await _repository.GetByIdAsync(id);
 
             if (product is null)
+            {
                 throw new NotFoundException(
                     ProductErrorCodes.ProductNotFound,
                     "Producto no encontrado.");
+            }
+
+            /*
+             * Consulta Orders.API antes de eliminar.
+             */
+            var hasActiveOrders =
+                await _ordersClient.HasActiveOrdersAsync(id);
+
+            if (hasActiveOrders)
+            {
+                _logger.LogWarning(
+                    "No se puede eliminar el producto {ProductId} porque tiene órdenes activas. ErrorCode: {ErrorCode}",
+                    id,
+                    ProductErrorCodes.ProductWithActiveOrders);
+
+                throw new BusinessRuleException(
+                    ProductErrorCodes.ProductWithActiveOrders,
+                    "El producto tiene órdenes activas y no puede eliminarse.");
+            }
 
             await _repository.DeleteAsync(id);
 

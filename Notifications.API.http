@@ -1,0 +1,77 @@
+### Notifications API - Test Endpoints
+
+@baseUrl = http://localhost:5000
+@contentType = application/json
+
+### Root - Redirige a Swagger
+GET {{baseUrl}}/
+
+### API Info
+GET {{baseUrl}}/api/info
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Health Check Ready
+GET {{baseUrl}}/health/ready
+
+### Health Check Detailed
+GET {{baseUrl}}/health/detailed
+
+### Send Notification - Success (201)
+POST {{baseUrl}}/api/notifications/send
+Content-Type: {{contentType}}
+
+{
+  "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333",
+  "mensaje": "Su orden #f1e2d3c4 fue confirmada.",
+  "tipo": "Email"
+}
+
+### Send Notification - User Not Found (404 - NTF-001)
+POST {{baseUrl}}/api/notifications/send
+Content-Type: {{contentType}}
+
+{
+  "usuarioId": "invalid-user-id",
+  "mensaje": "Test notification",
+  "tipo": "Email"
+}
+
+### Send Notification - Invalid Data (400 - NTF-002)
+POST {{baseUrl}}/api/notifications/send
+Content-Type: {{contentType}}
+
+{
+  "usuarioId": "",
+  "mensaje": "Test",
+  "tipo": "Email"
+}
+
+### Send Notification - Missing Fields (400 - NTF-002)
+POST {{baseUrl}}/api/notifications/send
+Content-Type: {{contentType}}
+
+{
+  "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333"
+}
+
+### Get Notifications by User - Success (200)
+GET {{baseUrl}}/api/notifications/a1b2c3d4-0000-0000-0000-111122223333
+
+### Get Notifications by User - User Not Found (404 - NTF-001)
+GET {{baseUrl}}/api/notifications/invalid-user-id
+
+### Get Notifications by User - No Notifications Found (404 - NTF-003)
+GET {{baseUrl}}/api/notifications/different-user-id
+
+### With Custom Correlation ID
+POST {{baseUrl}}/api/notifications/send
+Content-Type: {{contentType}}
+X-Correlation-Id: my-custom-correlation-123
+
+{
+  "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333",
+  "mensaje": "Test con Correlation ID",
+  "tipo": "SMS"
+}

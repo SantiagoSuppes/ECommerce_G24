@@ -1,36 +1,48 @@
 ﻿using Serilog.Context;
-namespace Orders.API.Middleware
+
+namespace Orders.API.Middleware;
+
+/// <summary>
+/// Genera o reutiliza X-Correlation-Id
+/// para cada request.
+/// </summary>
+public class CorrelationIdMiddleware
 {
-    // Middleware para generar o reutilizar el X-Correlation-Id.
-    public class CorrelationIdMiddleware
+    public const string HeaderName =
+        "X-Correlation-Id";
+
+    private readonly RequestDelegate _next;
+
+    public CorrelationIdMiddleware(
+        RequestDelegate next)
     {
-        private const string HeaderName = "X-Correlation-Id";
+        _next = next;
+    }
 
-        private readonly RequestDelegate _next;
-
-        public CorrelationIdMiddleware(RequestDelegate next)
-        {
-            _next = next;
-        }
-
-        public async Task InvokeAsync(HttpContext context)
-        {
-            // Si el request ya viene con X-Correlation-Id,se usa ese sino generamos uno nuevo.
-            var correlationId = context.Request.Headers.TryGetValue(HeaderName, out var value)
-                ? value.ToString()
+    public async Task InvokeAsync(
+        HttpContext context)
+    {
+        var correlationId =
+            context.Request.Headers.TryGetValue(
+                HeaderName,
+                out var existingValue)
+                ? existingValue.ToString()
                 : Guid.NewGuid().ToString();
 
-            // Establecer el Correlation ID en items para acceso durante el request
-            context.Items[HeaderName] = correlationId;
+        // Disponible para otros componentes.
+        context.Items[HeaderName] =
+            correlationId;
 
-            // Lo agregamos a la respuesta.
-            context.Response.Headers[HeaderName] = correlationId;
+        // Se devuelve en la respuesta.
+        context.Response.Headers[HeaderName] =
+            correlationId;
 
-            // Lo agregamos al contexto de Serilog para que aparezca en los logs.
-            using (LogContext.PushProperty("CorrelationId", correlationId))
-            {
-                await _next(context);
-            }
+        // Se agrega a todos los logs del request.
+        using (LogContext.PushProperty(
+                   "CorrelationId",
+                   correlationId))
+        {
+            await _next(context);
         }
     }
 }

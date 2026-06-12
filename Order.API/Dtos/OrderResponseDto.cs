@@ -14,7 +14,7 @@ public class OrderResponseDto
     public Guid UsuarioId { get; set; }
 
     /// <summary>Lista de items de la orden.</summary>
-    public List<CreateOrderItemRequestDto> Items { get; set; } = new();
+    public List<OrderItemResponseDto> Items { get; set; } = new();
 
     /// <summary>Total de la orden.</summary>
     public decimal Total { get; set; }

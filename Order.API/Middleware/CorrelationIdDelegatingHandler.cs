@@ -1,35 +1,50 @@
 ﻿namespace Orders.API.Middleware;
 
-// Handler HTTP que propaga X-Correlation-Id hacia otros microservicios.
-public class CorrelationIdDelegatingHandler : DelegatingHandler
+/// <summary>
+/// Propaga X-Correlation-Id en llamadas
+/// hacia Users.API y Products.API.
+/// </summary>
+public class CorrelationIdDelegatingHandler
+    : DelegatingHandler
 {
-    private const string HeaderName = "X-Correlation-Id";
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public CorrelationIdDelegatingHandler(IHttpContextAccessor httpContextAccessor)
+    public CorrelationIdDelegatingHandler(
+        IHttpContextAccessor httpContextAccessor)
     {
-        _httpContextAccessor = httpContextAccessor;
+        _httpContextAccessor =
+            httpContextAccessor;
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        var httpContext = _httpContextAccessor.HttpContext;
+        var context =
+            _httpContextAccessor.HttpContext;
 
-        if (httpContext is not null)
+        if (context is not null &&
+            context.Items.TryGetValue(
+                CorrelationIdMiddleware.HeaderName,
+                out var value))
         {
-            var correlationId = httpContext.Items.TryGetValue(HeaderName, out var value)
-                ? value?.ToString()
-                : httpContext.Request.Headers[HeaderName].ToString();
+            var correlationId =
+                value?.ToString();
 
-            if (!string.IsNullOrWhiteSpace(correlationId))
+            if (!string.IsNullOrWhiteSpace(
+                    correlationId))
             {
-                request.Headers.Remove(HeaderName);
-                request.Headers.Add(HeaderName, correlationId);
+                request.Headers.Remove(
+                    CorrelationIdMiddleware.HeaderName);
+
+                request.Headers.Add(
+                    CorrelationIdMiddleware.HeaderName,
+                    correlationId);
             }
         }
 
-        return await base.SendAsync(request, cancellationToken);
+        return await base.SendAsync(
+            request,
+            cancellationToken);
     }
 }

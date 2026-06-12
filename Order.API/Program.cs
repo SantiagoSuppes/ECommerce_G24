@@ -245,7 +245,9 @@ builder.Services.AddExceptionHandler<
     BusinessRuleExceptionHandler>();
 
 builder.Services.AddExceptionHandler<
-    GlobalExceptionHandler>();
+    InternalServerExceptionHandler>();
+builder.Services.AddExceptionHandler<
+    UnprocessableEntityExceptionHandler>();
 
 builder.Services.AddProblemDetails();
 

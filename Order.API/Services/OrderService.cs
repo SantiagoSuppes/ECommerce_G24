@@ -99,7 +99,7 @@ public class OrderService : IOrderService
         foreach (var requestedItem in groupedItems)
         {
             var product =
-                await _productsApiClient.GetByIdAsync(
+                await _productsApiClient.GetProductByIdAsync(
                     requestedItem.ProductoId,
                     cancellationToken);
 

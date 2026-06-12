@@ -1,32 +1,43 @@
 ﻿using Serilog.Context;
 
-namespace Users.API.Middleware
+namespace Users.API.Middleware;
+
+/// <summary>
+/// Genera o reutiliza un X-Correlation-Id por request.
+/// No maneja excepciones.
+/// </summary>
+public class CorrelationIdMiddleware
 {
-    // Middleware para generar o reutilizar el X-Correlation-Id del request.
-    public class CorrelationIdMiddleware
+    public const string HeaderName = "X-Correlation-Id";
+
+    private readonly RequestDelegate _next;
+
+    public CorrelationIdMiddleware(RequestDelegate next)
     {
-        private const string HeaderName = "X-Correlation-Id";
+        _next = next;
+    }
 
-        private readonly RequestDelegate _next;
-
-        public CorrelationIdMiddleware(RequestDelegate next)
-        {
-            _next = next;
-        }
-
-        public async Task InvokeAsync(HttpContext context)
-        {
-            var correlationId = context.Request.Headers.TryGetValue(HeaderName, out var value)
-                ? value.ToString()
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var correlationId =
+            context.Request.Headers.TryGetValue(
+                HeaderName,
+                out var existingValue)
+                ? existingValue.ToString()
                 : Guid.NewGuid().ToString();
 
-            context.Response.Headers[HeaderName] = correlationId;
+        // Disponible para handlers y logs.
+        context.Items[HeaderName] = correlationId;
 
-            using (LogContext.PushProperty("CorrelationId", correlationId))
-            using (LogContext.PushProperty("Endpoint", context.Request.Path.ToString()))
-            {
-                await _next(context);
-            }
+        // Se devuelve en la respuesta.
+        context.Response.Headers[HeaderName] = correlationId;
+
+        // Se incorpora a Serilog.
+        using (LogContext.PushProperty(
+                   "CorrelationId",
+                   correlationId))
+        {
+            await _next(context);
         }
     }
 }

@@ -1,22 +1,36 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Users.API.Dtos;
+namespace Users.API.DTOs;
 
+/// <summary>
+/// Datos requeridos para registrar un usuario.
+/// </summary>
 public class RegisterUserRequestDto
 {
-    [Required(ErrorMessage = "El nombre es requerido.")]
-    [StringLength(20, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 20 caracteres")]
-    public required string Nombre { get; set; }
+    /// <summary>
+    /// Nombre del usuario.
+    /// </summary>
+    [Required(ErrorMessage = "El nombre es obligatorio.")]
+    public string Nombre { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El nombre es requerido.")]
-    [StringLength(20, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 20 caracteres")]
-    public required string Apellido { get; set; }
+    /// <summary>
+    /// Apellido del usuario.
+    /// </summary>
+    [Required(ErrorMessage = "El apellido es obligatorio.")]
+    public string Apellido { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El email es requerido.")]
-    [StringLength(20, ErrorMessage = "Maximo 50 caracteres para el email.")]
-    public required string Email { get; set; }
+    /// <summary>
+    /// Email único y con formato válido.
+    /// </summary>
+    [Required(ErrorMessage = "El email es obligatorio.")]
+    [EmailAddress(ErrorMessage = "El formato del email no es válido.")]
+    public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "La contraseña es requerida.")]
-    [StringLength(20, MinimumLength = 6, ErrorMessage = "La contraseña debe tener entre 6 y 20 caracteres")]
-    public required string Password { get; set; }
+    /// <summary>
+    /// Contraseña ingresada por el usuario.
+    /// Nunca se almacena en texto plano.
+    /// </summary>
+    [Required(ErrorMessage = "La contraseña es obligatoria.")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
 }

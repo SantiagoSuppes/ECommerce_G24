@@ -1,26 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <OutputPath>bin\</OutputPath>
-  </PropertyGroup>
+	<PropertyGroup>
+		
+		<TargetFramework>net8.0</TargetFramework>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.26" />
-    <PackageReference Include="Serilog" Version="4.3.1" />
-    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-  </ItemGroup>
+		<!-- Control de referencias nulas -->
+		<Nullable>enable</Nullable>
 
-  <ItemGroup>
-    <None Update="Users.API\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="Users.API\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+		<!-- Usings automáticos -->
+		<ImplicitUsings>enable</ImplicitUsings>
 
-  <ItemGroup>
-    <Folder Include="Users.API\Properties\" />
-  </ItemGroup>
+		<!-- Genera comentarios XML para Swagger -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+		<!-- Evita warnings por miembros sin comentario XML -->
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
 
 </Project>

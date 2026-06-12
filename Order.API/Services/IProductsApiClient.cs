@@ -1,8 +1,16 @@
 ﻿using Orders.API.Dtos;
 
-namespace Orders.API.Clients;
+namespace Orders.API.Services;
 
+/// <summary>
+/// Contrato para consultar Products.API.
+/// </summary>
 public interface IProductsApiClient
 {
-    Task<ProductResponseDto?> GetProductByIdAsync(Guid productId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Obtiene un producto por ID.
+    /// </summary>
+    Task<ProductResponseDto?> GetByIdAsync(
+        Guid productId,
+        CancellationToken cancellationToken = default);
 }

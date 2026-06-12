@@ -1,3 +1,4 @@
+using Users.API.Dtos;
 using Users.API.DTOs;
 using Users.API.Exceptions;
 using Users.API.Models;
@@ -163,6 +164,29 @@ public class UserService : IUserService
             Nombre = user.Nombre,
             Apellido = user.Apellido,
             Email = user.Email
+        };
+    }
+    /// <summary>
+    /// Comprueba si un usuario existe.
+    /// </summary>
+    public async Task<UserExistsResponseDto> ExistsAsync(
+        Guid userId)
+    {
+        // Guid.Empty no representa un usuario válido.
+        if (userId == Guid.Empty)
+        {
+            return new UserExistsResponseDto
+            {
+                Exists = false
+            };
+        }
+
+        var exists =
+            await _repository.ExistsByIdAsync(userId);
+
+        return new UserExistsResponseDto
+        {
+            Exists = exists
         };
     }
 }

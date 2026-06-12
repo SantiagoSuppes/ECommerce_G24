@@ -19,6 +19,9 @@ public class OrderRepository : IOrderRepository
         _configuration = configuration;
     }
 
+    /// <summary>
+    /// Crea una conexión nueva a SQLite.
+    /// </summary>
     private SqliteConnection CreateConnection()
     {
         var connectionString =
@@ -29,6 +32,10 @@ public class OrderRepository : IOrderRepository
         return new SqliteConnection(connectionString);
     }
 
+    /// <summary>
+    /// Obtiene todas las órdenes.
+    /// Si se informa userId, filtra por usuario.
+    /// </summary>
     public async Task<IReadOnlyCollection<Order>> GetAllAsync(
         Guid? userId)
     {
@@ -54,8 +61,7 @@ public class OrderRepository : IOrderRepository
                 sql,
                 new
                 {
-                    UsuarioId =
-                        userId?.ToString()
+                    UsuarioId = userId?.ToString()
                 }))
             .ToList();
 
@@ -69,6 +75,7 @@ public class OrderRepository : IOrderRepository
 
         const string itemSql = """
             SELECT
+                id AS Id,
                 order_id AS OrderId,
                 producto_id AS ProductoId,
                 cantidad AS Cantidad,
@@ -107,6 +114,9 @@ public class OrderRepository : IOrderRepository
             .ToList();
     }
 
+    /// <summary>
+    /// Obtiene una orden por ID, incluyendo sus items.
+    /// </summary>
     public async Task<Order?> GetByIdAsync(
         Guid orderId)
     {
@@ -137,6 +147,7 @@ public class OrderRepository : IOrderRepository
 
         const string itemSql = """
             SELECT
+                id AS Id,
                 order_id AS OrderId,
                 producto_id AS ProductoId,
                 cantidad AS Cantidad,
@@ -164,6 +175,11 @@ public class OrderRepository : IOrderRepository
             items);
     }
 
+    /// <summary>
+    /// Crea una orden junto con sus items.
+    /// Usa transacción para evitar guardar una cabecera
+    /// sin detalle o un detalle sin cabecera.
+    /// </summary>
     public async Task<Order> CreateAsync(
         Order order)
     {
@@ -214,12 +230,14 @@ public class OrderRepository : IOrderRepository
 
             const string itemSql = """
                 INSERT INTO order_items (
+                    id,
                     order_id,
                     producto_id,
                     cantidad,
                     precio_unitario
                 )
                 VALUES (
+                    @Id,
                     @OrderId,
                     @ProductoId,
                     @Cantidad,
@@ -233,6 +251,9 @@ public class OrderRepository : IOrderRepository
                     itemSql,
                     new
                     {
+                        Id =
+                            item.Id.ToString(),
+
                         OrderId =
                             order.Id.ToString(),
 
@@ -256,6 +277,9 @@ public class OrderRepository : IOrderRepository
         }
     }
 
+    /// <summary>
+    /// Actualiza el estado de una orden.
+    /// </summary>
     public async Task UpdateStatusAsync(
         Guid orderId,
         string status,
@@ -279,23 +303,30 @@ public class OrderRepository : IOrderRepository
         });
     }
 
+    /// <summary>
+    /// Convierte un registro de cabecera
+    /// y su lista de items al modelo Order.
+    /// </summary>
     private static Order MapToOrder(
         OrderRecord record,
         List<OrderItem> items)
     {
         return new Order
         {
-            Id = Guid.Parse(record.Id),
+            Id =
+                Guid.Parse(record.Id),
 
             UsuarioId =
                 Guid.Parse(record.UsuarioId),
 
-            Items = items,
+            Items =
+                items,
 
             Total =
                 Convert.ToDecimal(record.Total),
 
-            Estado = record.Estado,
+            Estado =
+                record.Estado,
 
             FechaCreacion =
                 DateTime.Parse(
@@ -314,11 +345,18 @@ public class OrderRepository : IOrderRepository
         };
     }
 
+    /// <summary>
+    /// Convierte un registro de SQLite
+    /// al modelo OrderItem.
+    /// </summary>
     private static OrderItem MapToOrderItem(
         OrderItemRecord record)
     {
         return new OrderItem
         {
+            Id =
+                Guid.Parse(record.Id),
+
             ProductoId =
                 Guid.Parse(record.ProductoId),
 
@@ -331,6 +369,10 @@ public class OrderRepository : IOrderRepository
         };
     }
 
+    /// <summary>
+    /// Registro auxiliar para leer la cabecera
+    /// de órdenes desde SQLite.
+    /// </summary>
     private sealed class OrderRecord
     {
         public string Id { get; set; } =
@@ -350,8 +392,15 @@ public class OrderRepository : IOrderRepository
         public string? FechaActualizacion { get; set; }
     }
 
+    /// <summary>
+    /// Registro auxiliar para leer items
+    /// desde SQLite.
+    /// </summary>
     private sealed class OrderItemRecord
     {
+        public string Id { get; set; } =
+            string.Empty;
+
         public string OrderId { get; set; } =
             string.Empty;
 

@@ -1,28 +1,55 @@
-﻿using System.Net;
+﻿using Orders.API.Dtos;
+using System.Net.Http.Json;
 
-namespace Orders.API.Clients;
+namespace Orders.API.Services;
 
+/// <summary>
+/// Cliente HTTP utilizado para consultar Users.API.
+/// </summary>
 public class UsersApiClient : IUsersApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<UsersApiClient> _logger;
 
-    public UsersApiClient(HttpClient httpClient, ILogger<UsersApiClient> logger)
+    public UsersApiClient(
+        HttpClient httpClient,
+        ILogger<UsersApiClient> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
     }
 
-    public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<bool> UserExistsAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync($"/api/users/{userId}", cancellationToken);
+        var requestUrl =
+            $"/api/users/{userId}/exists";
 
-        if (response.StatusCode == HttpStatusCode.NotFound)
-            return false;
+        _logger.LogInformation(
+            "Consultando usuario en {BaseAddress}{RequestUrl}",
+            _httpClient.BaseAddress,
+            requestUrl);
 
+        var response =
+            await _httpClient.GetAsync(
+                requestUrl,
+                cancellationToken);
+
+        /*
+         * El endpoint /exists siempre debería responder 200.
+         *
+         * Si devuelve 404, 500 o cualquier otro error,
+         * significa que hay un problema de integración.
+         */
         response.EnsureSuccessStatusCode();
 
-        _logger.LogInformation("Usuario verificado en Users.API. UserId: {UserId}", userId);
-        return true;
+        var result =
+            await response.Content
+                .ReadFromJsonAsync<UserExistsResponseDto>(
+                    cancellationToken:
+                        cancellationToken);
+
+        return result?.Exists ?? false;
     }
 }

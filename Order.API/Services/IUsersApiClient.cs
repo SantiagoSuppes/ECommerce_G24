@@ -1,6 +1,14 @@
-﻿namespace Orders.API.Clients;
+﻿namespace Orders.API.Services;
 
+/// <summary>
+/// Contrato para consultar Users.API.
+/// </summary>
 public interface IUsersApiClient
 {
-    Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Comprueba si el usuario existe.
+    /// </summary>
+    Task<bool> UserExistsAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }

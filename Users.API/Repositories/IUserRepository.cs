@@ -14,4 +14,5 @@ public interface IUserRepository
     Task<User> RegisterFailedAttemptAsync(Guid userId);
 
     Task ResetFailedAttemptsAsync(Guid userId);
+    Task<bool> ExistsByIdAsync(Guid userId);
 }

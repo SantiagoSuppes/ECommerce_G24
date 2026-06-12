@@ -1,13 +1,14 @@
 ﻿namespace Orders.API.Middleware;
 
 /// <summary>
-/// Propaga X-Correlation-Id en llamadas
-/// hacia Users.API y Products.API.
+/// Propaga X-Correlation-Id hacia Users.API
+/// y Products.API.
 /// </summary>
 public class CorrelationIdDelegatingHandler
     : DelegatingHandler
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IHttpContextAccessor
+        _httpContextAccessor;
 
     public CorrelationIdDelegatingHandler(
         IHttpContextAccessor httpContextAccessor)
@@ -16,16 +17,17 @@ public class CorrelationIdDelegatingHandler
             httpContextAccessor;
     }
 
-    protected override async Task<HttpResponseMessage> SendAsync(
-        HttpRequestMessage request,
-        CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage>
+        SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
     {
         var context =
             _httpContextAccessor.HttpContext;
 
         if (context is not null &&
             context.Items.TryGetValue(
-                CorrelationIdMiddleware.HeaderName,
+                "X-Correlation-Id",
                 out var value))
         {
             var correlationId =
@@ -35,10 +37,10 @@ public class CorrelationIdDelegatingHandler
                     correlationId))
             {
                 request.Headers.Remove(
-                    CorrelationIdMiddleware.HeaderName);
+                    "X-Correlation-Id");
 
                 request.Headers.Add(
-                    CorrelationIdMiddleware.HeaderName,
+                    "X-Correlation-Id",
                     correlationId);
             }
         }

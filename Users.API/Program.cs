@@ -1,11 +1,8 @@
-using System.Reflection;
 using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
-using Serilog.Filters;
 using Serilog.Formatting.Json;
 using Users.API.Database;
 using Users.API.DTOs;
@@ -18,15 +15,18 @@ using Users.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Nombre del microservicio utilizado en los logs.
 var serviceName =
     builder.Configuration["ServiceName"]
     ?? "Users.API";
 
-// Configuración de Serilog.
+#region Serilog
+
+// Configuración de logging estructurado.
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
 
-    // Reduce ruido de logs internos de Microsoft.
+    // Reduce el ruido generado por componentes internos de Microsoft.
     .MinimumLevel.Override(
         "Microsoft",
         LogEventLevel.Warning)
@@ -35,92 +35,60 @@ Log.Logger = new LoggerConfiguration()
         "Microsoft.AspNetCore.Hosting.Diagnostics",
         LogEventLevel.Information)
 
-    // Permite incorporar CorrelationId y errorCode.
+    // Permite agregar CorrelationId y errorCode.
     .Enrich.FromLogContext()
 
-    // Identifica el microservicio.
+    // Identifica qué microservicio generó el log.
     .Enrich.WithProperty(
         "Servicio",
         serviceName)
 
-    // Consola: solo Error o superior, siguiendo la guía MiniApi.
-    .WriteTo.Logger(configuration =>
-        configuration
-            .Filter.ByIncludingOnly(
-                logEvent =>
-                    logEvent.Level >= LogEventLevel.Error)
-            .WriteTo.Console(
-                outputTemplate:
-                "[{Timestamp:HH:mm:ss} {Level:u3}] " +
-                "{Servicio} {Message:lj} " +
-                "{Properties:j}{NewLine}{Exception}"))
+    // Consola en formato legible.
+    .WriteTo.Console(
+        outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] " +
+        "{Servicio} {Message:lj} " +
+        "{Properties:j}{NewLine}{Exception}")
 
-    // Archivo JSON: registra requests HTTP.
-    .WriteTo.Logger(configuration =>
-        configuration
-            .Filter.ByIncludingOnly(logEvent =>
-            {
-                var isRequestLog =
-                    Matching.FromSource(
-                        "Serilog.AspNetCore.RequestLoggingMiddleware")
-                    (logEvent);
-
-                if (!isRequestLog)
-                    return false;
-
-                // Excluye health y swagger para evitar ruido.
-                if (logEvent.Properties.TryGetValue(
-                        "RequestPath",
-                        out var pathProperty) &&
-                    pathProperty is ScalarValue scalar &&
-                    scalar.Value is string path)
-                {
-                    return !path.Contains("/health") &&
-                           !path.Contains("/swagger");
-                }
-
-                return true;
-            })
-            .WriteTo.File(
-                new JsonFormatter(),
-                "logs/users-api-.json",
-                rollingInterval:
-                    RollingInterval.Day))
+    // Archivo JSON estructurado con rotación diaria.
+    .WriteTo.File(
+        formatter: new JsonFormatter(),
+        path: "logs/users-api-.json",
+        rollingInterval: RollingInterval.Day)
 
     .CreateLogger();
 
+// Reemplaza el logger estándar por Serilog.
 builder.Host.UseSerilog();
 
-// Controladores.
+#endregion
+
+#region Controllers y validaciones
+
+// Registra los controladores.
 builder.Services.AddControllers();
 
-// Personaliza los errores automáticos de Data Annotations.
+// Personaliza las respuestas automáticas de Data Annotations.
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
     {
+        // Reúne todos los errores de validación.
         var errors = context.ModelState
-            .Where(entry =>
-                entry.Value?.Errors.Count > 0)
-            .SelectMany(entry =>
-                entry.Value!.Errors)
+            .Where(entry => entry.Value?.Errors.Count > 0)
+            .SelectMany(entry => entry.Value!.Errors)
             .Select(error =>
                 string.IsNullOrWhiteSpace(error.ErrorMessage)
                     ? "Valor inválido."
                     : error.ErrorMessage)
             .ToList();
 
-        var errorMessage =
-            errors.Count > 0
-                ? string.Join("; ", errors)
-                : "Los datos del usuario son inválidos.";
+        // El TP permite separar varios errores mediante punto y coma.
+        var errorMessage = errors.Count > 0
+            ? string.Join("; ", errors)
+            : "Los datos del usuario son inválidos.";
 
-        // Como el catálogo no define otro código de validación
-        // para login, se utiliza USR-002 para requests inválidos.
-        context.HttpContext.Items[
-            ExceptionHandlerHelper.ErrorCodeItemName] =
-            UserErrorCodes.InvalidUserData;
-
+        // Recupera el Correlation ID generado por el middleware.
         var correlationId =
             context.HttpContext.Items.TryGetValue(
                 CorrelationIdMiddleware.HeaderName,
@@ -134,71 +102,70 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             {
                 Type =
                     "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+
                 Title = "Bad Request",
+
                 Status =
                     StatusCodes.Status400BadRequest,
+
                 Detail =
                     "La solicitud contiene datos inválidos.",
+
                 Instance =
                     context.HttpContext.Request.Path,
+
                 ErrorCode =
                     UserErrorCodes.InvalidUserData,
-                ErrorMessage = errorMessage,
-                CorrelationId = correlationId
+
+                ErrorMessage =
+                    errorMessage,
+
+                CorrelationId =
+                    correlationId
             });
     };
 });
 
-// Swagger.
+#endregion
+
+#region Swagger
+
+// Descubre los endpoints de los controladores.
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc(
-        "v1",
-        new OpenApiInfo
-        {
-            Title = "Users.API",
-            Version = "v1",
-            Description =
-                "Microservicio de usuarios del sistema E-Commerce."
-        });
+// Misma configuración simple utilizada en Products.API y Cart.API.
+builder.Services.AddSwaggerGen();
 
-    // Incluye XML comments.
-    var xmlFile =
-        $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+#endregion
 
-    var xmlPath =
-        Path.Combine(
-            AppContext.BaseDirectory,
-            xmlFile);
+#region Dependencias propias
 
-    if (File.Exists(xmlPath))
-    {
-        options.IncludeXmlComments(xmlPath);
-    }
-});
-
-// Inicialización de base.
+// Inicializador de SQLite.
 builder.Services.AddSingleton<DatabaseInitializer>();
 
-// Repositorio.
+// Repositorio de usuarios.
 builder.Services.AddScoped<
     IUserRepository,
     UserRepository>();
 
-// Servicios.
+// Servicio de usuarios.
 builder.Services.AddScoped<
     IUserService,
     UserService>();
 
+// Servicio de hashing de contraseñas.
 builder.Services.AddSingleton<
     IPasswordHasher,
     Pbkdf2PasswordHasher>();
 
-// Correlation ID para HTTP saliente.
+#endregion
+
+#region Correlation ID
+
+// Permite acceder al HttpContext desde handlers HTTP.
 builder.Services.AddHttpContextAccessor();
 
+// Handler para propagar el Correlation ID en llamadas salientes.
 builder.Services.AddTransient<
     CorrelationIdDelegatingHandler>();
 
@@ -207,8 +174,11 @@ builder.Services
     .AddHttpMessageHandler<
         CorrelationIdDelegatingHandler>();
 
-// Exception handlers.
-// Los específicos deben registrarse antes que el global.
+#endregion
+
+#region Exception handlers
+
+// Los handlers específicos se registran antes del handler global.
 builder.Services.AddExceptionHandler<
     ValidationExceptionHandler>();
 
@@ -220,17 +190,23 @@ builder.Services.AddExceptionHandler<
 
 builder.Services.AddProblemDetails();
 
-// Health Checks.
+#endregion
+
+#region Health Checks
+
+// Registra los checks de aplicación y SQLite.
 builder.Services
     .AddHealthChecks()
+
     .AddCheck<ApiStatusCheck>(
         "api-status",
         tags: new[] { "live", "api" })
+
     .AddCheck<SqliteHealthCheck>(
         "sqlite-db",
         tags: new[] { "ready", "database" });
 
-// Dashboard visual de Health Checks.
+// Registra el dashboard visual.
 builder.Services
     .AddHealthChecksUI(setup =>
     {
@@ -242,9 +218,13 @@ builder.Services
     })
     .AddInMemoryStorage();
 
+#endregion
+
 var app = builder.Build();
 
-// Inicializa la base al arrancar.
+#region Inicialización de SQLite
+
+// Crea la base y la tabla users al iniciar la aplicación.
 using (var scope = app.Services.CreateScope())
 {
     var initializer =
@@ -254,17 +234,23 @@ using (var scope = app.Services.CreateScope())
     initializer.Initialize();
 }
 
-// Swagger solo en Development.
+#endregion
+
+#region Swagger
+
+// Misma configuración utilizada en Products.API y Cart.API.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Genera el Correlation ID.
+#endregion
+
+// Genera o reutiliza X-Correlation-Id.
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-// Log de inicio, fin, estado y duración de cada request.
+// Registra inicio, fin, estado y duración de cada request.
 app.UseSerilogRequestLogging(options =>
 {
     options.GetLevel =
@@ -311,39 +297,31 @@ app.UseSerilogRequestLogging(options =>
                     "CorrelationId",
                     correlationId);
             }
-
-            if (httpContext.Items.TryGetValue(
-                    ExceptionHandlerHelper.ErrorCodeItemName,
-                    out var errorCode))
-            {
-                diagnosticContext.Set(
-                    "errorCode",
-                    errorCode);
-            }
         };
 });
 
-// Manejo global con IExceptionHandler.
-// No se utiliza middleware personalizado para manejar errores.
+// Manejo global de errores mediante IExceptionHandler.
 app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
+// Mapea UsersController.
 app.MapControllers();
 
-// Estado general.
+#region Health endpoints
+
+// Estado general del microservicio.
 app.MapHealthChecks(
     "/health",
     new HealthCheckOptions
     {
         ResponseWriter =
-            UIResponseWriter
-                .WriteHealthCheckUIResponse
+            UIResponseWriter.WriteHealthCheckUIResponse
     });
 
-// Readiness: incluye SQLite.
+// Readiness: comprueba SQLite.
 app.MapHealthChecks(
     "/health/ready",
     new HealthCheckOptions
@@ -353,11 +331,10 @@ app.MapHealthChecks(
                 registration.Tags.Contains("ready"),
 
         ResponseWriter =
-            UIResponseWriter
-                .WriteHealthCheckUIResponse
+            UIResponseWriter.WriteHealthCheckUIResponse
     });
 
-// Liveness: solo verifica que la API esté viva.
+// Liveness: comprueba que la API esté viva.
 app.MapHealthChecks(
     "/health/live",
     new HealthCheckOptions
@@ -367,14 +344,15 @@ app.MapHealthChecks(
                 registration.Tags.Contains("live"),
 
         ResponseWriter =
-            UIResponseWriter
-                .WriteHealthCheckUIResponse
+            UIResponseWriter.WriteHealthCheckUIResponse
     });
 
-// Dashboard visual de Health Checks.
+// Dashboard visual.
 app.MapHealthChecksUI(options =>
 {
     options.UIPath = "/health-ui";
 });
+
+#endregion
 
 app.Run();

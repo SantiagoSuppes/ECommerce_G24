@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Users.API.Dtos;
 using Users.API.DTOs;
 using Users.API.Services;
 
@@ -75,6 +76,28 @@ public class UsersController : ControllerBase
     {
         var response =
             await _userService.LoginAsync(request);
+
+        return Ok(response);
+    }
+    /// <summary>
+    /// Comprueba si un usuario está registrado.
+    /// Este endpoint es utilizado por otros microservicios.
+    /// </summary>
+    /// <param name="id">
+    /// Identificador del usuario.
+    /// </param>
+    /// <returns>
+    /// Devuelve true si el usuario existe.
+    /// </returns>
+    [HttpGet("{id:guid}/exists")]
+    [ProducesResponseType(
+        typeof(UserExistsResponseDto),
+        StatusCodes.Status200OK)]
+    public async Task<ActionResult<UserExistsResponseDto>>
+        Exists(Guid id)
+    {
+        var response =
+            await _userService.ExistsAsync(id);
 
         return Ok(response);
     }

@@ -1,3 +1,4 @@
+using Users.API.Dtos;
 using Users.API.DTOs;
 
 namespace Users.API.Services;
@@ -12,4 +13,5 @@ public interface IUserService
 
     Task<LoginResponseDto> LoginAsync(
         LoginRequestDto request);
+    Task<UserExistsResponseDto> ExistsAsync(Guid userId);
 }

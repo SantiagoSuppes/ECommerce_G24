@@ -158,6 +158,29 @@ public class UserRepository : IUserRepository
             Id = userId.ToString()
         });
     }
+    /// <summary>
+    /// Comprueba si existe un usuario con el ID recibido.
+    /// </summary>
+    public async Task<bool> ExistsByIdAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+
+        const string sql = """
+        SELECT COUNT(1)
+        FROM users
+        WHERE id = @Id;
+    """;
+
+        var count = await connection.ExecuteScalarAsync<int>(
+            sql,
+            new
+            {
+                
+                Id = userId.ToString()
+            });
+
+        return count > 0;
+    }
 
     private static User MapToUser(UserRecord record)
     {

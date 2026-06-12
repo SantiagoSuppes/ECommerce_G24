@@ -1,4 +1,3 @@
-using Orders.API.Clients;
 using Orders.API.Dtos;
 using Orders.API.DTOs;
 using Orders.API.Exceptions;
@@ -99,7 +98,7 @@ public class OrderService : IOrderService
         foreach (var requestedItem in groupedItems)
         {
             var product =
-                await _productsApiClient.GetProductByIdAsync(
+                await _productsApiClient.GetByIdAsync(
                     requestedItem.ProductoId,
                     cancellationToken);
 
@@ -122,9 +121,9 @@ public class OrderService : IOrderService
                     StatusCodes.Status422UnprocessableEntity);
             }
 
-            // El precio se captura en este momento.
             orderItems.Add(new OrderItem
             {
+                Id = Guid.NewGuid(),
                 ProductoId = product.Id,
                 Cantidad = requestedItem.Cantidad,
                 PrecioUnitario = product.Precio

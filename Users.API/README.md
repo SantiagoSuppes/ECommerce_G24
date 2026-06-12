@@ -19,7 +19,7 @@ ECommerce_G24/
 │   │   ├── UserFraudBlockedExceptionHandler.cs
 │   │   └── ValidationExceptionHandler.cs
 │   ├── Exceptions/               # Excepciones personalizadas
-│   │   ├── BussinessRuleException.cs
+│   │   ├── BusinessRuleException.cs
 │   │   ├── DuplicateEmailException.cs
 │   │   ├── InternalServerException.cs
 │   │   ├── InvalidCredentialsException.cs

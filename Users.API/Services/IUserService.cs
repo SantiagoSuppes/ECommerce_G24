@@ -1,9 +1,10 @@
 using Users.API.Dtos;
+using Users.API.DTOs;
 
 namespace Users.API.Services;
 
 public interface IUserService
 {
-    Task<UserResponseDto> RegisterAsync(RegisterUserRequestDto request);
-    Task<UserResponseDto> LoginAsync(LoginUserRequestDto request);
+    Task<RegisterUserResponseDto> RegisterAsync(RegisterUserRequestDto request);
+    Task<LoginResponseDto> LoginAsync(LoginUserRequestDto request);
 }

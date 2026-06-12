@@ -1,0 +1,77 @@
+@baseUrl = http://localhost:5135/api/users
+
+### Registrar nuevo usuario - Exitoso
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "nombre": "María",
+  "apellido": "González",
+  "email": "maria@email.com",
+  "password": "MiPassword123!"
+}
+
+### Registrar usuario - Email duplicado
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "nombre": "María",
+  "apellido": "González",
+  "email": "maria@email.com",
+  "password": "MiPassword123!"
+}
+
+### Registrar usuario - Campos faltantes
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "nombre": "Juan",
+  "apellido": "Pérez"
+}
+
+### Login - Exitoso
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "maria@email.com",
+  "password": "MiPassword123!"
+}
+
+### Login - Credenciales incorrectas
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "maria@email.com",
+  "password": "PasswordIncorrecto"
+}
+
+### Login - Intento 2 fallido
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "maria@email.com",
+  "password": "PasswordIncorrecto"
+}
+
+### Login - Intento 3 fallido (bloqueo)
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "maria@email.com",
+  "password": "PasswordIncorrecto"
+}
+
+### Login - Usuario bloqueado
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "maria@email.com",
+  "password": "MiPassword123!"
+}

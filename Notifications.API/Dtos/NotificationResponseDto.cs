@@ -6,10 +6,10 @@ namespace ECommerce_G24.Notifications.API.Dtos;
 public class NotificationResponseDto
 {
     /// Identificador único de la notificación.
-    public string Id { get; set; } = string.Empty;
+    public Guid Id { get; set; } 
 
     /// Identificador del usuario receptor.
-    public string UsuarioId { get; set; } = string.Empty;
+    public Guid UsuarioId { get; set; } 
 
     /// Contenido del mensaje.
     public string Mensaje { get; set; } = string.Empty;

@@ -1,9 +1,18 @@
 using ECommerce_G24.Notifications.API.Dtos;
+using Notifications.API.DTOs;
 
-namespace ECommerce_G24.Notifications.API.Services;
+namespace Notifications.API.Services;
 
+/// <summary>
+/// Contrato de lógica de negocio
+/// para Notifications.API.
+/// </summary>
 public interface INotificationService
 {
-    Task<NotificationResponseDto> SendNotificationAsync(CreateNotificationRequestDto request);
-    Task<List<NotificationResponseDto>> GetNotificationsByUserIdAsync(string userId);
+    Task<NotificationResponseDto> SendAsync(
+        CreateNotificationRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<NotificationResponseDto>> GetByUserIdAsync(
+        Guid userId);
 }

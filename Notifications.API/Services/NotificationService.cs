@@ -1,111 +1,128 @@
 using ECommerce_G24.Notifications.API.Dtos;
-using ECommerce_G24.Notifications.API.Exceptions;
-using ECommerce_G24.Notifications.API.Models;
+using ECommerce_G24.Notifications.API.Services;
+using Notifications.API.Dtos;
+using Notifications.API.Exceptions;
+using Notifications.API.Models;
+using Notifications.API.Repositories;
 
-namespace ECommerce_G24.Notifications.API.Services;
+namespace Notifications.API.Services;
 
+/// <summary>
+/// Servicio principal de Notifications.API.
+/// </summary>
 public class NotificationService : INotificationService
 {
+    private readonly INotificationRepository _repository;
+    private readonly IUsersApiClient _usersApiClient;
     private readonly ILogger<NotificationService> _logger;
-    private readonly Dictionary<string, List<Notification>> _notificationsStore;
 
-    public NotificationService(ILogger<NotificationService> logger)
+    public NotificationService(
+        INotificationRepository repository,
+        IUsersApiClient usersApiClient,
+        ILogger<NotificationService> logger)
     {
+        _repository = repository;
+        _usersApiClient = usersApiClient;
         _logger = logger;
-        _notificationsStore = new Dictionary<string, List<Notification>>();
     }
 
-    public async Task<NotificationResponseDto> SendNotificationAsync(CreateNotificationRequestDto request)
+    public async Task<NotificationResponseDto> SendAsync(
+        CreateNotificationRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        if (request == null || string.IsNullOrEmpty(request.UsuarioId) || 
-            string.IsNullOrEmpty(request.Mensaje) || string.IsNullOrEmpty(request.Tipo))
+        // Guid.Empty representa un usuario inválido.
+        if (request.UsuarioId == Guid.Empty)
         {
-            _logger.LogWarning("Validacion fallida - Datos invalidos en request");
-            throw new ValidationException("Los datos de la notificación son inválidos.");
+            throw new ValidationException(
+                NotificationErrorCodes.InvalidNotificationData,
+                "El usuario destinatario es obligatorio.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.UsuarioId))
+        // Evita mensajes nulos, vacíos o formados solo por espacios.
+        if (string.IsNullOrWhiteSpace(request.Mensaje))
         {
-            _logger.LogWarning("Usuario no encontrado - UsuarioId: {UsuarioId}", request.UsuarioId);
-            throw new UserNotFoundException("El usuario solicitado no fue encontrado.");
+            throw new ValidationException(
+                NotificationErrorCodes.InvalidNotificationData,
+                "El mensaje es obligatorio.");
         }
 
-        try
+        if (request.Mensaje.Trim().Length > 500)
         {
-            var notification = new Notification
-            {
-                Id = Guid.NewGuid().ToString(),
-                UsuarioId = request.UsuarioId,
-                Mensaje = request.Mensaje,
-                Tipo = request.Tipo,
-                Estado = "Enviada",
-                FechaEnvio = DateTime.UtcNow
-            };
+            throw new ValidationException(
+                NotificationErrorCodes.InvalidNotificationData,
+                "El mensaje no puede superar los 500 caracteres.");
+        }
 
-            if (!_notificationsStore.ContainsKey(request.UsuarioId))
-            {
-                _notificationsStore[request.UsuarioId] = new List<Notification>();
-            }
-            _notificationsStore[request.UsuarioId].Add(notification);
+        // Valida que el tipo sea Email, Push o SMS.
+        if (!NotificationTypes.IsValid(request.Tipo))
+        {
+            throw new ValidationException(
+                NotificationErrorCodes.InvalidNotificationData,
+                "El tipo de notificación debe ser Email, Push o SMS.");
+        }
 
-            _logger.LogInformation("Notificación creada: {NotificationId} para usuario {UsuarioId}", 
-                notification.Id, request.UsuarioId);
+        // Consulta a Users.API.
+        var userExists =
+            await _usersApiClient.UserExistsAsync(
+                request.UsuarioId,
+                cancellationToken);
 
-            return MapToResponseDto(notification);
-        }
-        catch (ValidationException)
+        if (!userExists)
         {
-            throw;
+            throw new NotFoundException(
+                NotificationErrorCodes.UserNotFound,
+                "El usuario destinatario no fue encontrado.");
         }
-        catch (UserNotFoundException)
+
+        // Como el endpoint registra y simula el envío,
+        // la notificación se almacena directamente como Enviada.
+        var notification = new Notification
         {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al crear notificación");
-            throw new InternalServerException("Error interno al procesar la notificación.");
-        }
+            Id = Guid.NewGuid(),
+            UsuarioId = request.UsuarioId,
+            Mensaje = request.Mensaje.Trim(),
+            Tipo = NotificationTypes.Normalize(request.Tipo),
+            Estado = NotificationStates.Sent,
+            FechaEnvio = DateTime.UtcNow
+        };
+
+        var createdNotification =
+            await _repository.CreateAsync(notification);
+
+        _logger.LogInformation(
+            "Notificación enviada. NotificationId: {NotificationId}, UsuarioId: {UsuarioId}, Tipo: {Tipo}",
+            createdNotification.Id,
+            createdNotification.UsuarioId,
+            createdNotification.Tipo);
+
+        return MapToResponse(createdNotification);
     }
 
-    public async Task<List<NotificationResponseDto>> GetNotificationsByUserIdAsync(string userId)
+    public async Task<IReadOnlyCollection<NotificationResponseDto>>
+        GetByUserIdAsync(Guid userId)
     {
-        if (string.IsNullOrWhiteSpace(userId))
+        var notifications =
+            await _repository.GetByUserIdAsync(userId);
+
+        // NTF-003 cuando el usuario
+        // no tiene notificaciones registradas.
+        if (notifications.Count == 0)
         {
-            _logger.LogWarning("Usuario no encontrado - UsuarioId: {UsuarioId}", userId);
-            throw new UserNotFoundException("El usuario solicitado no fue encontrado.");
+            throw new NotFoundException(
+                NotificationErrorCodes.NotificationsNotFound,
+                "No se encontraron notificaciones para el usuario.");
         }
 
-        try
-        {
-            if (!_notificationsStore.ContainsKey(userId) || _notificationsStore[userId].Count == 0)
-            {
-                _logger.LogWarning("No se encontraron notificaciones para usuario: {UserId}", userId);
-                throw new NotFoundException("No se encontraron notificaciones para el usuario.");
-            }
-
-            var notifications = _notificationsStore[userId];
-            _logger.LogInformation("Se obtuvieron {Count} notificaciones para usuario {UsuarioId}", 
-                notifications.Count, userId);
-
-            return notifications.Select(MapToResponseDto).ToList();
-        }
-        catch (NotFoundException)
-        {
-            throw;
-        }
-        catch (UserNotFoundException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al obtener notificaciones para usuario {UsuarioId}", userId);
-            throw new InternalServerException("Error interno al obtener notificaciones.");
-        }
+        return notifications
+            .Select(MapToResponse)
+            .ToList();
     }
 
-    private NotificationResponseDto MapToResponseDto(Notification notification)
+    /// <summary>
+    /// Convierte la entidad de dominio a DTO público.
+    /// </summary>
+    private static NotificationResponseDto MapToResponse(
+        Notification notification)
     {
         return new NotificationResponseDto
         {

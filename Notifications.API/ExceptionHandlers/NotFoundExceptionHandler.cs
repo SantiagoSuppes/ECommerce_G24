@@ -1,41 +1,74 @@
 using Microsoft.AspNetCore.Diagnostics;
-using System.Net;
-using ECommerce_G24.Notifications.API.Exceptions;
+using Notifications.API.DTOs;
+using Notifications.API.Exceptions;
+using Serilog.Context;
 
-namespace ECommerce_G24.Notifications.API.ExceptionHandlers;
+namespace Notifications.API.ExceptionHandlers;
 
 /// <summary>
-/// Intenta manejar la excepción de recurso no encontrado.
+/// Maneja NTF-001 y NTF-003.
 /// </summary>
-public class NotFoundExceptionHandler : IExceptionHandler
+public class NotFoundExceptionHandler
+    : IExceptionHandler
 {
-    /// <summary>
-    /// Intenta manejar la excepción de recurso no encontrado.
-    /// </summary>
+    private readonly ILogger<NotFoundExceptionHandler> _logger;
+
+    public NotFoundExceptionHandler(
+        ILogger<NotFoundExceptionHandler> logger)
+    {
+        _logger = logger;
+    }
+
     public async ValueTask<bool> TryHandleAsync(
-        HttpContext httpContext,
+        HttpContext context,
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (exception is not NotFoundException notFoundException)
+        if (exception is not NotFoundException ex)
             return false;
 
-        var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+        context.Items[
+            ExceptionHandlerHelper.ErrorCodeItemName] =
+            ex.ErrorCode;
 
-        httpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
-        httpContext.Response.ContentType = "application/json";
+        using (LogContext.PushProperty(
+                   "errorCode",
+                   ex.ErrorCode))
+        {
+            _logger.LogWarning(
+                exception,
+                "Recurso no encontrado. ErrorCode: {ErrorCode}",
+                ex.ErrorCode);
+        }
 
-        await httpContext.Response.WriteAsJsonAsync(
-            new
+        context.Response.StatusCode =
+            StatusCodes.Status404NotFound;
+
+        await context.Response.WriteAsJsonAsync(
+            new ErrorResponseDto
             {
-                type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-                title = "Not Found",
-                status = 404,
-                detail = notFoundException.Message,
-                instance = httpContext.Request.Path,
-                errorCode = "NTF-003",
-                errorMessage = notFoundException.Message,
-                correlationId
+                Type =
+                    "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+
+                Title = "Not Found",
+
+                Status =
+                    StatusCodes.Status404NotFound,
+
+                Detail =
+                    "El recurso solicitado no fue encontrado.",
+
+                Instance =
+                    context.Request.Path,
+
+                ErrorCode =
+                    ex.ErrorCode,
+
+                ErrorMessage =
+                    ex.Message,
+
+                CorrelationId =
+                    ExceptionHandlerHelper.GetCorrelationId(context)
             },
             cancellationToken);
 

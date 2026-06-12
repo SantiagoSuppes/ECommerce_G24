@@ -1,141 +1,365 @@
-﻿using Dapper;
+﻿using System.Globalization;
+using Dapper;
 using Microsoft.Data.Sqlite;
 using Orders.API.Models;
 
 namespace Orders.API.Repositories;
 
+/// <summary>
+/// Implementación SQLite + Dapper
+/// del repositorio de órdenes.
+/// </summary>
 public class OrderRepository : IOrderRepository
 {
     private readonly IConfiguration _configuration;
 
-    public OrderRepository(IConfiguration configuration)
+    public OrderRepository(
+        IConfiguration configuration)
     {
         _configuration = configuration;
     }
 
     private SqliteConnection CreateConnection()
     {
-        var connectionString = _configuration.GetConnectionString("DefaultConnection")
+        var connectionString =
+            _configuration.GetConnectionString(
+                "DefaultConnection")
             ?? "Data Source=orders.db";
+
         return new SqliteConnection(connectionString);
     }
 
-    public async Task<IEnumerable<Order>> GetAllAsync(string? usuarioId)
+    public async Task<IReadOnlyCollection<Order>> GetAllAsync(
+        Guid? userId)
     {
         using var connection = CreateConnection();
 
-        var records = await connection.QueryAsync<OrderRecord>(
-            usuarioId == null
-                ? "SELECT id, usuario_id, total, estado, fecha_creacion FROM orders"
-                : "SELECT id, usuario_id, total, estado, fecha_creacion FROM orders WHERE usuario_id = @UsuarioId",
-            new { UsuarioId = usuarioId });
+        const string sql = """
+            SELECT
+                id AS Id,
+                usuario_id AS UsuarioId,
+                total AS Total,
+                estado AS Estado,
+                fecha_creacion AS FechaCreacion,
+                fecha_actualizacion AS FechaActualizacion
+            FROM orders
+            WHERE
+                @UsuarioId IS NULL
+                OR usuario_id = @UsuarioId
+            ORDER BY fecha_creacion DESC;
+        """;
 
-        var result = new List<Order>();
-        foreach (var record in records)
-        {
-            var items = await GetItemsByOrderIdAsync(connection, record.Id);
-            result.Add(MapToOrder(record, items));
-        }
-
-        return result;
-    }
-
-    public async Task<Order?> GetByIdAsync(Guid id)
-    {
-        using var connection = CreateConnection();
-
-        var record = await connection.QueryFirstOrDefaultAsync<OrderRecord>(
-            "SELECT id, usuario_id, total, estado, fecha_creacion FROM orders WHERE id = @Id",
-            new { Id = id.ToString() });
-
-        if (record == null)
-            return null;
-
-        var items = await GetItemsByOrderIdAsync(connection, record.Id);
-        return MapToOrder(record, items);
-    }
-
-    public async Task<Order> CreateAsync(Order order, List<OrderItem> items)
-    {
-        using var connection = CreateConnection();
-
-        await connection.ExecuteAsync(
-            "INSERT INTO orders (id, usuario_id, total, estado, fecha_creacion) VALUES (@Id, @UsuarioId, @Total, @Estado, @FechaCreacion)",
-            new
-            {
-                Id = order.Id.ToString(),
-                order.UsuarioId,
-                order.Total,
-                order.Estado,
-                FechaCreacion = order.FechaCreacion.ToString("o")
-            });
-
-        foreach (var item in items)
-        {
-            await connection.ExecuteAsync(
-                "INSERT INTO order_items (id, order_id, producto_id, cantidad, precio_unitario) VALUES (@Id, @OrderId, @ProductoId, @Cantidad, @PrecioUnitario)",
+        var orderRecords =
+            (await connection.QueryAsync<OrderRecord>(
+                sql,
                 new
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    OrderId = order.Id.ToString(),
-                    ProductoId = item.ProductoId.ToString(),
-                    item.Cantidad,
-                    item.PrecioUnitario
-                });
-        }
+                    UsuarioId =
+                        userId?.ToString()
+                }))
+            .ToList();
 
-        return (await GetByIdAsync(order.Id))!;
+        if (orderRecords.Count == 0)
+            return Array.Empty<Order>();
+
+        var orderIds =
+            orderRecords
+                .Select(record => record.Id)
+                .ToArray();
+
+        const string itemSql = """
+            SELECT
+                order_id AS OrderId,
+                producto_id AS ProductoId,
+                cantidad AS Cantidad,
+                precio_unitario AS PrecioUnitario
+            FROM order_items
+            WHERE order_id IN @OrderIds;
+        """;
+
+        var itemRecords =
+            (await connection.QueryAsync<OrderItemRecord>(
+                itemSql,
+                new
+                {
+                    OrderIds = orderIds
+                }))
+            .ToList();
+
+        var itemsByOrder =
+            itemRecords
+                .GroupBy(item => item.OrderId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group
+                        .Select(MapToOrderItem)
+                        .ToList());
+
+        return orderRecords
+            .Select(record =>
+                MapToOrder(
+                    record,
+                    itemsByOrder.TryGetValue(
+                        record.Id,
+                        out var items)
+                        ? items
+                        : new List<OrderItem>()))
+            .ToList();
     }
 
-    public async Task UpdateStatusAsync(Guid id, string estado)
+    public async Task<Order?> GetByIdAsync(
+        Guid orderId)
     {
         using var connection = CreateConnection();
 
-        await connection.ExecuteAsync(
-            "UPDATE orders SET estado = @Estado WHERE id = @Id",
-            new { Estado = estado, Id = id.ToString() });
+        const string orderSql = """
+            SELECT
+                id AS Id,
+                usuario_id AS UsuarioId,
+                total AS Total,
+                estado AS Estado,
+                fecha_creacion AS FechaCreacion,
+                fecha_actualizacion AS FechaActualizacion
+            FROM orders
+            WHERE id = @Id;
+        """;
+
+        var record =
+            await connection.QuerySingleOrDefaultAsync<OrderRecord>(
+                orderSql,
+                new
+                {
+                    Id = orderId.ToString()
+                });
+
+        if (record is null)
+            return null;
+
+        const string itemSql = """
+            SELECT
+                order_id AS OrderId,
+                producto_id AS ProductoId,
+                cantidad AS Cantidad,
+                precio_unitario AS PrecioUnitario
+            FROM order_items
+            WHERE order_id = @OrderId
+            ORDER BY producto_id;
+        """;
+
+        var itemRecords =
+            await connection.QueryAsync<OrderItemRecord>(
+                itemSql,
+                new
+                {
+                    OrderId = orderId.ToString()
+                });
+
+        var items =
+            itemRecords
+                .Select(MapToOrderItem)
+                .ToList();
+
+        return MapToOrder(
+            record,
+            items);
     }
 
-    private static async Task<List<OrderItem>> GetItemsByOrderIdAsync(SqliteConnection connection, string orderId)
+    public async Task<Order> CreateAsync(
+        Order order)
     {
-        var records = await connection.QueryAsync<OrderItemRecord>(
-            "SELECT producto_id, cantidad, precio_unitario FROM order_items WHERE order_id = @OrderId",
-            new { OrderId = orderId });
+        using var connection = CreateConnection();
 
-        return records.Select(r => new OrderItem
+        await connection.OpenAsync();
+
+        using var transaction =
+            connection.BeginTransaction();
+
+        try
         {
-            ProductoId = Guid.Parse(r.ProductoId),
-            Cantidad = r.Cantidad,
-            PrecioUnitario = r.PrecioUnitario
-        }).ToList();
+            const string orderSql = """
+                INSERT INTO orders (
+                    id,
+                    usuario_id,
+                    total,
+                    estado,
+                    fecha_creacion,
+                    fecha_actualizacion
+                )
+                VALUES (
+                    @Id,
+                    @UsuarioId,
+                    @Total,
+                    @Estado,
+                    @FechaCreacion,
+                    NULL
+                );
+            """;
+
+            await connection.ExecuteAsync(
+                orderSql,
+                new
+                {
+                    Id = order.Id.ToString(),
+
+                    UsuarioId =
+                        order.UsuarioId.ToString(),
+
+                    order.Total,
+                    order.Estado,
+
+                    FechaCreacion =
+                        order.FechaCreacion.ToString("O")
+                },
+                transaction);
+
+            const string itemSql = """
+                INSERT INTO order_items (
+                    order_id,
+                    producto_id,
+                    cantidad,
+                    precio_unitario
+                )
+                VALUES (
+                    @OrderId,
+                    @ProductoId,
+                    @Cantidad,
+                    @PrecioUnitario
+                );
+            """;
+
+            foreach (var item in order.Items)
+            {
+                await connection.ExecuteAsync(
+                    itemSql,
+                    new
+                    {
+                        OrderId =
+                            order.Id.ToString(),
+
+                        ProductoId =
+                            item.ProductoId.ToString(),
+
+                        item.Cantidad,
+                        item.PrecioUnitario
+                    },
+                    transaction);
+            }
+
+            transaction.Commit();
+
+            return order;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
-    private static Order MapToOrder(OrderRecord record, List<OrderItem> items)
+    public async Task UpdateStatusAsync(
+        Guid orderId,
+        string status,
+        DateTime updatedAt)
+    {
+        using var connection = CreateConnection();
+
+        await connection.ExecuteAsync("""
+            UPDATE orders
+            SET
+                estado = @Estado,
+                fecha_actualizacion = @FechaActualizacion
+            WHERE id = @Id;
+        """, new
+        {
+            Id = orderId.ToString(),
+            Estado = status,
+
+            FechaActualizacion =
+                updatedAt.ToString("O")
+        });
+    }
+
+    private static Order MapToOrder(
+        OrderRecord record,
+        List<OrderItem> items)
     {
         return new Order
         {
             Id = Guid.Parse(record.Id),
-            UsuarioId = record.UsuarioId,
+
+            UsuarioId =
+                Guid.Parse(record.UsuarioId),
+
             Items = items,
-            Total = record.Total,
+
+            Total =
+                Convert.ToDecimal(record.Total),
+
             Estado = record.Estado,
-            FechaCreacion = DateTime.Parse(record.FechaCreacion)
+
+            FechaCreacion =
+                DateTime.Parse(
+                    record.FechaCreacion,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind),
+
+            FechaActualizacion =
+                string.IsNullOrWhiteSpace(
+                    record.FechaActualizacion)
+                    ? null
+                    : DateTime.Parse(
+                        record.FechaActualizacion,
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.RoundtripKind)
         };
     }
 
-    private class OrderRecord
+    private static OrderItem MapToOrderItem(
+        OrderItemRecord record)
     {
-        public string Id { get; set; } = string.Empty;
-        public string UsuarioId { get; set; } = string.Empty;
-        public decimal Total { get; set; }
-        public string Estado { get; set; } = string.Empty;
-        public string FechaCreacion { get; set; } = string.Empty;
+        return new OrderItem
+        {
+            ProductoId =
+                Guid.Parse(record.ProductoId),
+
+            Cantidad =
+                record.Cantidad,
+
+            PrecioUnitario =
+                Convert.ToDecimal(
+                    record.PrecioUnitario)
+        };
     }
 
-    private class OrderItemRecord
+    private sealed class OrderRecord
     {
-        public string ProductoId { get; set; } = string.Empty;
+        public string Id { get; set; } =
+            string.Empty;
+
+        public string UsuarioId { get; set; } =
+            string.Empty;
+
+        public double Total { get; set; }
+
+        public string Estado { get; set; } =
+            string.Empty;
+
+        public string FechaCreacion { get; set; } =
+            string.Empty;
+
+        public string? FechaActualizacion { get; set; }
+    }
+
+    private sealed class OrderItemRecord
+    {
+        public string OrderId { get; set; } =
+            string.Empty;
+
+        public string ProductoId { get; set; } =
+            string.Empty;
+
         public int Cantidad { get; set; }
-        public decimal PrecioUnitario { get; set; }
+
+        public double PrecioUnitario { get; set; }
     }
 }

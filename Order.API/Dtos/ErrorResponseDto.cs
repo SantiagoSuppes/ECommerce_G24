@@ -1,8 +1,7 @@
 ﻿namespace Orders.API.DTOs;
 
 /// <summary>
-/// Contrato estándar de error del TP.
-/// </summary>
+/// Contrato estándar de error
 public class ErrorResponseDto
 {
     public string Type { get; set; } = string.Empty;

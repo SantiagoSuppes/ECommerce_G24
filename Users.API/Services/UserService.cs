@@ -165,4 +165,21 @@ public class UserService : IUserService
             Email = user.Email
         };
     }
+    public async Task<UserLookupResponseDto?> GetByIdAsync(Guid id)
+    {
+        var user =
+            await _repository.GetByIdAsync(id);
+
+        if (user is null)
+            return null;
+
+        return new UserLookupResponseDto
+        {
+            Id = user.Id,
+            Nombre = user.Nombre,
+            Apellido = user.Apellido,
+            Email = user.Email,
+            Activo = user.Activo
+        };
+    }
 }

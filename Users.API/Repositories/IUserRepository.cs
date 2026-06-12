@@ -14,4 +14,7 @@ public interface IUserRepository
     Task<User> RegisterFailedAttemptAsync(Guid userId);
 
     Task ResetFailedAttemptsAsync(Guid userId);
+
+    //Traer usuario por id para las llamadas provenientes de Notifications.API
+    Task<User?> GetByIdAsync(Guid id);
 }

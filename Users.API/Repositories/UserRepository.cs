@@ -159,6 +159,37 @@ public class UserRepository : IUserRepository
         });
     }
 
+    public async Task<User?> GetByIdAsync(Guid id)
+    {
+        using var connection = CreateConnection();
+
+        const string sql = """
+        SELECT
+            id AS Id,
+            nombre AS Nombre,
+            apellido AS Apellido,
+            email AS Email,
+            password_hash AS PasswordHash,
+            fecha_registro AS FechaRegistro,
+            activo AS Activo,
+            intentos_fallidos AS IntentosFallidos
+        FROM users
+        WHERE id = @Id;
+    """;
+
+        var record =
+            await connection.QuerySingleOrDefaultAsync<UserRecord>(
+                sql,
+                new
+                {
+                    Id = id.ToString()
+                });
+
+        return record is null
+            ? null
+            : MapToUser(record);
+    }
+
     private static User MapToUser(UserRecord record)
     {
         return new User

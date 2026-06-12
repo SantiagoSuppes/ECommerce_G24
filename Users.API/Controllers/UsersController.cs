@@ -75,4 +75,25 @@ public class UsersController : ControllerBase
 
         return Ok(response);
     }
+
+    /// <summary>
+    /// Obtiene los datos públicos de un usuario por ID.
+    /// </summary>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(
+        typeof(UserLookupResponseDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserLookupResponseDto>> GetById(
+        Guid id)
+    {
+        var user =
+            await _userService.GetByIdAsync(id);
+
+        if (user is null)
+            return NotFound();
+
+        return Ok(user);
+    }
 }

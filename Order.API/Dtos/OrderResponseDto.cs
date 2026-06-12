@@ -9,7 +9,7 @@ public class OrderResponseDto
     public Guid Id { get; set; }
 
     /// <summary>ID del usuario que realizó la orden.</summary>
-    public string UsuarioId { get; set; } = string.Empty;
+    public Guid UsuarioId { get; set; }
 
     /// <summary>Lista de items de la orden.</summary>
     public List<OrderItemResponseDto> Items { get; set; } = new();

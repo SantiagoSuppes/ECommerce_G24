@@ -1,7 +1,23 @@
-namespace ECommerce_G24.source.Users.API.Dtos;
+using System.ComponentModel.DataAnnotations;
 
-public class LoginUserRequestDto
+namespace Users.API.DTOs;
+
+/// <summary>
+/// Datos requeridos para iniciar sesión.
+/// </summary>
+public class LoginRequestDto
 {
-    public required string Email { get; set; }
-    public required string Password { get; set; }
+    /// <summary>
+    /// Email registrado.
+    /// </summary>
+    [Required(ErrorMessage = "El email es obligatorio.")]
+    [EmailAddress(ErrorMessage = "El formato del email no es válido.")]
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Contraseña del usuario.
+    /// </summary>
+    [Required(ErrorMessage = "La contraseña es obligatoria.")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
 }

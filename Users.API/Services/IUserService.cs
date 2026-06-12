@@ -1,9 +1,15 @@
-using ECommerce_G24.source.Users.API.Dtos;
+using Users.API.DTOs;
 
-namespace ECommerce_G24.source.Users.API.Services;
+namespace Users.API.Services;
 
+/// <summary>
+/// Contrato de lógica de negocio de Users.API.
+/// </summary>
 public interface IUserService
 {
-    Task<UserResponseDto> RegisterAsync(RegisterUserRequestDto request);
-    Task<UserResponseDto> LoginAsync(LoginUserRequestDto request);
+    Task<RegisterUserResponseDto> RegisterAsync(
+        RegisterUserRequestDto request);
+
+    Task<LoginResponseDto> LoginAsync(
+        LoginRequestDto request);
 }

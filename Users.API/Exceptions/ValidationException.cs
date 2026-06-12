@@ -1,10 +1,15 @@
-namespace ECommerce_G24.source.Users.API.Exceptions;
+namespace Users.API.Exceptions;
 
+/// <summary>
+/// Excepción utilizada cuando los datos recibidos son inválidos.
+/// </summary>
 public class ValidationException : Exception
 {
-    public const string ErrorCode = "USR-002";
+    public string ErrorCode { get; }
 
-    public ValidationException(string message) : base(message)
+    public ValidationException(string errorCode, string message)
+        : base(message)
     {
+        ErrorCode = errorCode;
     }
 }

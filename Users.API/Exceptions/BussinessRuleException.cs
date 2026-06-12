@@ -1,8 +1,22 @@
-namespace ECommerce_G24.source.Users.API.Exceptions;
+namespace Users.API.Exceptions;
 
-public class BussinessRuleException : Exception
+/// <summary>
+/// Excepción utilizada para reglas de negocio de Users.API.
+/// Permite representar conflictos, credenciales incorrectas y bloqueos.
+/// </summary>
+public class BusinessRuleException : Exception
 {
-    public BussinessRuleException(string message) : base(message)
+    public string ErrorCode { get; }
+
+    public int StatusCode { get; }
+
+    public BusinessRuleException(
+        string errorCode,
+        string message,
+        int statusCode)
+        : base(message)
     {
+        ErrorCode = errorCode;
+        StatusCode = statusCode;
     }
 }

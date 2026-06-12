@@ -203,7 +203,7 @@ builder.Services
             var baseUrl =
                 configuration[
                     "ExternalServices:UsersApi:BaseUrl"]
-                ?? "https://localhost:7003";
+                ?? "https://localhost:7135";
 
             client.BaseAddress =
                 new Uri(baseUrl);
@@ -223,7 +223,7 @@ builder.Services
             var baseUrl =
                 configuration[
                     "ExternalServices:ProductsApi:BaseUrl"]
-                ?? "https://localhost:7001";
+                ?? "https://localhost:7150";
 
             client.BaseAddress =
                 new Uri(baseUrl);

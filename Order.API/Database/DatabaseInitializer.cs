@@ -4,19 +4,16 @@ using Microsoft.Data.Sqlite;
 namespace Orders.API.Database;
 
 /// <summary>
-/// Inicializa la base SQLite de Orders.API.
+/// Inicializa la base de datos SQLite utilizada por Orders.API.
 /// </summary>
 public class DatabaseInitializer
 {
     private readonly IConfiguration _configuration;
-    private readonly ILogger<DatabaseInitializer> _logger;
 
     public DatabaseInitializer(
-        IConfiguration configuration,
-        ILogger<DatabaseInitializer> logger)
+        IConfiguration configuration)
     {
         _configuration = configuration;
-        _logger = logger;
     }
 
     public void Initialize()
@@ -35,37 +32,24 @@ public class DatabaseInitializer
         connection.Execute(
             "PRAGMA foreign_keys = ON;");
 
-        // Cabecera de la orden.
+        // Crea las tablas si todavía no existen.
         connection.Execute("""
-            CREATE TABLE IF NOT EXISTS orders (
-                id TEXT PRIMARY KEY,
-                usuario_id TEXT NOT NULL,
-                total REAL NOT NULL
-                    CHECK (total >= 0),
-                estado TEXT NOT NULL
-                    CHECK (
-                        estado IN (
-                            'Pendiente',
-                            'Confirmada',
-                            'Enviada',
-                            'Entregada',
-                            'Cancelada'
-                        )
-                    ),
-                fecha_creacion TEXT NOT NULL,
-                fecha_actualizacion TEXT NULL
+            CREATE TABLE IF NOT EXISTS orders
+            (
+                id                   TEXT PRIMARY KEY,
+                usuario_id           TEXT NOT NULL,
+                total                REAL NOT NULL,
+                estado               TEXT NOT NULL,
+                fecha_creacion       TEXT NOT NULL,
+                fecha_actualizacion  TEXT NULL
             );
-        """);
 
-        // Detalle de la orden.
-        connection.Execute("""
-            CREATE TABLE IF NOT EXISTS order_items (
-                order_id TEXT NOT NULL,
-                producto_id TEXT NOT NULL,
-                cantidad INTEGER NOT NULL
-                    CHECK (cantidad > 0),
-                precio_unitario REAL NOT NULL
-                    CHECK (precio_unitario > 0),
+            CREATE TABLE IF NOT EXISTS order_items
+            (
+                order_id         TEXT NOT NULL,
+                producto_id      TEXT NOT NULL,
+                cantidad         INTEGER NOT NULL,
+                precio_unitario  REAL NOT NULL,
 
                 PRIMARY KEY (
                     order_id,
@@ -76,21 +60,39 @@ public class DatabaseInitializer
                     REFERENCES orders(id)
                     ON DELETE CASCADE
             );
-        """);
+            """);
 
-        connection.Execute("""
-            CREATE INDEX IF NOT EXISTS
-                ix_orders_usuario_id
-            ON orders (usuario_id);
-        """);
+        AddMissingColumns(connection);
+    }
 
-        connection.Execute("""
-            CREATE INDEX IF NOT EXISTS
-                ix_order_items_producto_id
-            ON order_items (producto_id);
-        """);
+    /// <summary>
+    /// Agrega columnas faltantes cuando la base fue creada
+    /// con una versión anterior del proyecto.
+    /// </summary>
+    private static void AddMissingColumns(
+        SqliteConnection connection)
+    {
+        var columns = connection
+            .Query<TableColumnInfo>(
+                "PRAGMA table_info(orders);")
+            .Select(column => column.Name)
+            .ToHashSet(
+                StringComparer.OrdinalIgnoreCase);
 
-        _logger.LogInformation(
-            "Base de datos de Orders.API inicializada correctamente.");
+        // CREATE TABLE IF NOT EXISTS no modifica tablas existentes.
+        // Por eso debemos agregar manualmente la columna si falta.
+        if (!columns.Contains("fecha_actualizacion"))
+        {
+            connection.Execute("""
+                ALTER TABLE orders
+                ADD COLUMN fecha_actualizacion TEXT NULL;
+                """);
+        }
+    }
+
+    private sealed class TableColumnInfo
+    {
+        public string Name { get; set; } =
+            string.Empty;
     }
 }

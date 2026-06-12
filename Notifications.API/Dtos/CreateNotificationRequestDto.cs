@@ -14,18 +14,23 @@ namespace ECommerce_G24.Notifications.API.Dtos;
 /// </summary>
 public class CreateNotificationRequestDto
 {
-    /// Identificador del usuario receptor de la notificación.
-    [Required(ErrorMessage = "El ID del usuario es requerido.")]
-    [StringLength(36, MinimumLength = 36, ErrorMessage = "El ID del usuario debe ser un GUID válido.")]
-    public string UsuarioId { get; set; } = string.Empty;
+    /// <summary>
+    /// Usuario destinatario de la notificación.
+    /// </summary>
+    public Guid UsuarioId { get; set; }
 
-    /// Contenido del mensaje de la notificación.
-    [Required(ErrorMessage = "El mensaje es requerido.")]
-    [StringLength(500, MinimumLength = 1, ErrorMessage = "El mensaje debe tener entre 1 y 500 caracteres.")]
+    /// <summary>
+    /// Mensaje que se desea enviar.
+    /// </summary>
+    [Required(ErrorMessage = "El mensaje es obligatorio.")]
+    [MaxLength(
+        500,
+        ErrorMessage = "El mensaje no puede superar los 500 caracteres.")]
     public string Mensaje { get; set; } = string.Empty;
 
-    /// Tipo de notificación (Email, SMS, Push, etc.).
-    [Required(ErrorMessage = "El tipo de notificación es requerido.")]
-    [StringLength(50, MinimumLength = 1, ErrorMessage = "El tipo debe tener entre 1 y 50 caracteres.")]
+    /// <summary>
+    /// Tipo de notificación: Email, Push o SMS.
+    /// </summary>
+    [Required(ErrorMessage = "El tipo es obligatorio.")]
     public string Tipo { get; set; } = string.Empty;
 }

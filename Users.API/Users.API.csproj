@@ -1,16 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
-		
 		<TargetFramework>net8.0</TargetFramework>
-
-		<!-- Control de referencias nulas -->
 		<Nullable>enable</Nullable>
-
-		<!-- Usings automáticos -->
 		<ImplicitUsings>enable</ImplicitUsings>
 
-		<!-- Genera comentarios XML para Swagger -->
+		<!-- Genera el archivo XML utilizado por Swagger -->
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 
 		<!-- Evita warnings por miembros sin comentario XML -->
@@ -18,16 +13,36 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
-	  <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
-	  <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />
-	  <PackageReference Include="Dapper" Version="2.1.79" />
-	  <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
-	  <PackageReference Include="Serilog" Version="4.3.1" />
-	  <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-	  <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
-	  <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-	  <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
+		<!-- Health Checks compatibles con .NET 8 -->
+		<PackageReference Include="AspNetCore.HealthChecks.UI"
+						  Version="8.0.1" />
+
+		<PackageReference Include="AspNetCore.HealthChecks.UI.Client"
+						  Version="8.0.1" />
+
+		<PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage"
+						  Version="8.0.1" />
+
+		<!-- Persistencia -->
+		<PackageReference Include="Dapper"
+						  Version="2.1.66" />
+
+		<PackageReference Include="Microsoft.Data.Sqlite"
+						  Version="8.0.10" />
+
+		<!-- Logging -->
+		<PackageReference Include="Serilog.AspNetCore"
+						  Version="8.0.0" />
+
+		<PackageReference Include="Serilog.Sinks.Console"
+						  Version="5.0.1" />
+
+		<PackageReference Include="Serilog.Sinks.File"
+						  Version="6.0.0" />
+
+		<!-- Swagger compatible con .NET 8 -->
+		<PackageReference Include="Swashbuckle.AspNetCore"
+						  Version="6.6.2" />
 	</ItemGroup>
 
 </Project>

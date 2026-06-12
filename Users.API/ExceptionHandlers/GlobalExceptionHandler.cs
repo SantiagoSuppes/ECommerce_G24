@@ -55,8 +55,6 @@ public class GlobalExceptionHandler : IExceptionHandler
                 Status =
                     StatusCodes.Status500InternalServerError,
 
-                // En desarrollo se muestra el mensaje,
-                // pero nunca el stack trace.
                 Detail = includeDetails
                     ? exception.Message
                     : "Ocurrió un error interno en el servidor.",

@@ -1,3 +1,5 @@
+using Orders.API.DTOs;
+
 namespace Orders.API.Dtos;
 
 /// <summary>
@@ -12,7 +14,7 @@ public class OrderResponseDto
     public Guid UsuarioId { get; set; }
 
     /// <summary>Lista de items de la orden.</summary>
-    public List<OrderItemResponseDto> Items { get; set; } = new();
+    public List<CreateOrderItemRequestDto> Items { get; set; } = new();
 
     /// <summary>Total de la orden.</summary>
     public decimal Total { get; set; }
@@ -22,19 +24,4 @@ public class OrderResponseDto
 
     /// <summary>Fecha de creación de la orden.</summary>
     public DateTime FechaCreacion { get; set; }
-}
-
-/// <summary>
-/// DTO de respuesta de un item de la orden.
-/// </summary>
-public class OrderItemResponseDto
-{
-    /// <summary>ID del producto.</summary>
-    public Guid ProductoId { get; set; }
-
-    /// <summary>Cantidad del producto.</summary>
-    public int Cantidad { get; set; }
-
-    /// <summary>Precio unitario del producto.</summary>
-    public decimal PrecioUnitario { get; set; }
 }

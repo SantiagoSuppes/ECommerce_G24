@@ -1,17 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Orders.API.Dtos;
+namespace Orders.API.DTOs;
 
 /// <summary>
-/// DTO para actualizar el estado de una orden.
+/// Datos requeridos para actualizar el estado.
 /// </summary>
 public class UpdateOrderStatusRequestDto
 {
     /// <summary>
-    /// Nuevo estado de la orden (Pendiente, Confirmada, Enviada, Entregada, Cancelada).
+    /// Nuevo estado de la orden.
     /// </summary>
-    [Required(ErrorMessage = "El estado es requerido.")]
-    [RegularExpression("Pendiente|Confirmada|Enviada|Entregada|Cancelada",
-        ErrorMessage = "El estado debe ser: Pendiente, Confirmada, Enviada, Entregada o Cancelada.")]
+    [Required(
+        ErrorMessage = "El estado es obligatorio.")]
     public string Estado { get; set; } = string.Empty;
 }

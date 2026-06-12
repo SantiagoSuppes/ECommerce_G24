@@ -9,11 +9,11 @@ namespace Orders.API.ExceptionHandlers;
 public class InternalServerExceptionHandler : IExceptionHandler
 {
 
-    private readonly ILogger<GlobalExceptionHandler> _logger;
+    private readonly ILogger<InternalServerExceptionHandler> _logger;
     private readonly IConfiguration _configuration;
 
-    public GlobalExceptionHandler(
-        ILogger<GlobalExceptionHandler> logger,
+    public InternalServerExceptionHandler(
+        ILogger<InternalServerExceptionHandler> logger,
         IConfiguration configuration)
     {
         _logger = logger;

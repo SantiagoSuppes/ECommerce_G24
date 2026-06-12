@@ -1,103 +1,189 @@
-using Orders.API.Services;
-using Orders.API.Dtos;
 using Microsoft.AspNetCore.Mvc;
+using Orders.API.Dtos;
+using Orders.API.DTOs;
+using Orders.API.Services;
 
 namespace Orders.API.Controllers;
 
 /// <summary>
-/// Controlador para gestionar órdenes de compra.
+/// Endpoints para crear, consultar y actualizar órdenes.
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/orders")]
 [Produces("application/json")]
 [Tags("Orders")]
 public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
 
-    public OrdersController(IOrderService orderService)
+    public OrdersController(
+        IOrderService orderService)
     {
         _orderService = orderService;
     }
 
     /// <summary>
-    /// Obtiene todas las órdenes, opcionalmente filtradas por usuarioId.
+    /// Lista todas las órdenes.
+    /// Permite filtrar opcionalmente por usuario.
     /// </summary>
-    /// <param name="usuarioId">ID del usuario para filtrar (opcional).</param>
-    /// <returns>Lista de órdenes.</returns>
-    /// <response code="200">Lista obtenida exitosamente.</response>
-    /// <response code="500">Error interno. Código: ORD-007.</response>
+    /// <param name="usuarioId">
+    /// Identificador opcional del usuario.
+    /// </param>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<OrderResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<IEnumerable<OrderResponseDto>>> GetAll([FromQuery] string? usuarioId)
+    [ProducesResponseType(
+        typeof(IReadOnlyCollection<OrderResponseDto>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status500InternalServerError)]
+    public async Task<
+        ActionResult<IReadOnlyCollection<OrderResponseDto>>>
+        GetAll([FromQuery] Guid? usuarioId)
     {
-        var orders = await _orderService.GetAllAsync(usuarioId);
+        var orders =
+            await _orderService.GetAllAsync(
+                usuarioId);
+
         return Ok(orders);
     }
 
     /// <summary>
-    /// Obtiene una orden por su ID.
+    /// Obtiene el detalle de una orden.
     /// </summary>
-    /// <param name="id">ID de la orden.</param>
-    /// <returns>Orden encontrada.</returns>
-    /// <response code="200">Orden encontrada exitosamente.</response>
-    /// <response code="404">Orden no encontrada. Código: ORD-001.</response>
-    /// <response code="500">Error interno. Código: ORD-007.</response>
-    [HttpGet("{id}")]
-    [ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<OrderResponseDto>> GetById(Guid id)
+    /// <param name="id">
+    /// Identificador de la orden.
+    /// </param>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(
+        typeof(OrderResponseDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<OrderResponseDto>>
+        GetById(Guid id)
     {
-        var order = await _orderService.GetByIdAsync(id);
+        var order =
+            await _orderService.GetByIdAsync(id);
+
         return Ok(order);
     }
 
-	/// <summary>
-	/// Crea una nueva orden.
-	/// </summary>
-	/// <param name="request">Datos de la orden a crear.</param>
-	/// <returns>Orden creada.</returns>
-	/// <response code="201">Orden creada exitosamente.</response>
-	/// <response code="400">Datos inválidos. Código: ORD-002.</response>
-	/// <response code="404">Usuario o producto no encontrado. Código: ORD-003, ORD-004.</response>
-	/// <response code="409">Conflicto de negocio. Código: ORD-006.</response>
-	/// <response code="422">Stock insuficiente. Código: ORD-005.</response>
-	/// <response code="500">Error interno. Código: ORD-007.</response>
-	[HttpPost]
-	[ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status201Created)]
-	[ProducesResponseType(StatusCodes.Status400BadRequest)]
-	[ProducesResponseType(StatusCodes.Status404NotFound)]
-	[ProducesResponseType(StatusCodes.Status409Conflict)]
-	[ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-	[ProducesResponseType(StatusCodes.Status500InternalServerError)]
-	public async Task<ActionResult<OrderResponseDto>> Create([FromBody] CreateOrderRequestDto request)
-	{
-		var order = await _orderService.CreateAsync(request);
-		return Created($"/api/orders/{order.Id}", order);
-	}
-
-	/// <summary>
-	/// Actualiza el estado de una orden existente.
-	/// </summary>
-	/// <param name="id">ID de la orden a actualizar.</param>
-	/// <param name="request">Nuevo estado de la orden.</param>
-	/// <returns>Orden actualizada.</returns>
-	/// <response code="200">Estado actualizado exitosamente.</response>
-	/// <response code="400">Estado inválido. Código: ORD-002.</response>
-	/// <response code="404">Orden no encontrada. Código: ORD-001.</response>
-	/// <response code="409">Transición de estado inválida. Código: ORD-006.</response>
-	/// <response code="500">Error interno. Código: ORD-007.</response>
-	[HttpPut("{id}/status")]
-    [ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<OrderResponseDto>> UpdateStatus(Guid id, [FromBody] UpdateOrderStatusRequestDto request)
+    /// <summary>
+    /// Crea una nueva orden.
+    /// </summary>
+    /// <remarks>
+    /// Ejemplo:
+    ///
+    ///     POST /api/orders
+    ///     {
+    ///       "usuarioId": "a1b2c3d4-0000-0000-0000-111122223333",
+    ///       "items": [
+    ///         {
+    ///           "productoId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    ///           "cantidad": 2
+    ///         }
+    ///       ]
+    ///     }
+    ///
+    /// La API:
+    ///
+    /// - valida el usuario en Users.API;
+    /// - valida cada producto en Products.API;
+    /// - valida el stock;
+    /// - captura el precio actual;
+    /// - calcula el total;
+    /// - crea la orden como Pendiente.
+    /// </remarks>
+    [HttpPost]
+    [ProducesResponseType(
+        typeof(OrderResponseDto),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status409Conflict)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<OrderResponseDto>>
+        Create(
+            CreateOrderRequestDto request,
+            CancellationToken cancellationToken)
     {
-        var order = await _orderService.UpdateStatusAsync(id, request);
-        return Ok(order);
+        var order =
+            await _orderService.CreateAsync(
+                request,
+                cancellationToken);
+
+        return CreatedAtAction(
+            nameof(GetById),
+            new
+            {
+                id = order.Id
+            },
+            order);
+    }
+
+    /// <summary>
+    /// Actualiza el estado de una orden.
+    /// </summary>
+    /// <param name="id">
+    /// Identificador de la orden.
+    /// </param>
+    /// <remarks>
+    /// Ejemplo:
+    ///
+    ///     PUT /api/orders/{id}/status
+    ///     {
+    ///       "estado": "Confirmada"
+    ///     }
+    ///
+    /// Estados disponibles:
+    ///
+    /// - Pendiente
+    /// - Confirmada
+    /// - Enviada
+    /// - Entregada
+    /// - Cancelada
+    /// </remarks>
+    [HttpPut("{id:guid}/status")]
+    [ProducesResponseType(
+        typeof(OrderStatusResponseDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status409Conflict)]
+    [ProducesResponseType(
+        typeof(ErrorResponseDto),
+        StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<OrderStatusResponseDto>>
+        UpdateStatus(
+            Guid id,
+            UpdateOrderStatusRequestDto request)
+    {
+        var response =
+            await _orderService.UpdateStatusAsync(
+                id,
+                request);
+
+        return Ok(response);
     }
 }

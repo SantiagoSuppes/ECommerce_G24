@@ -1,104 +1,307 @@
+using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.OpenApi;
+using Microsoft.AspNetCore.Mvc;
 using Orders.API.Clients;
 using Orders.API.Database;
+using Orders.API.DTOs;
 using Orders.API.ExceptionHandlers;
+using Orders.API.Exceptions;
 using Orders.API.HealthChecks;
 using Orders.API.Middleware;
-using Orders.API.Services;
 using Orders.API.Repositories;
+using Orders.API.Services;
 using Serilog;
-using System.Reflection;
+using Serilog.Events;
+using Serilog.Filters;
+using Serilog.Formatting.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuración de Serilog.
-builder.Host.UseSerilog((context, configuration) =>
-{
-    configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .Enrich.FromLogContext()
-        .Enrich.WithProperty("Servicio", "Orders.API")
-        .WriteTo.Console()
-        .WriteTo.File(
-            path: "logs/orders-api-.json",
-            rollingInterval: RollingInterval.Day,
-            formatter: new Serilog.Formatting.Json.JsonFormatter());
-});
+var serviceName =
+    builder.Configuration["ServiceName"]
+    ?? "Orders.API";
+
+#region Serilog
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+
+    .MinimumLevel.Override(
+        "Microsoft",
+        LogEventLevel.Warning)
+
+    .MinimumLevel.Override(
+        "Microsoft.AspNetCore.Hosting.Diagnostics",
+        LogEventLevel.Information)
+
+    // Permite agregar propiedades desde el contexto.
+    .Enrich.FromLogContext()
+
+    // Identifica el microservicio.
+    .Enrich.WithProperty(
+        "Servicio",
+        serviceName)
+
+    // Consola en formato legible.
+    .WriteTo.Console(
+        outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] " +
+        "{Servicio} {Message:lj} " +
+        "{Properties:j}{NewLine}{Exception}")
+
+ 
+    .WriteTo.Logger(configuration =>
+        configuration
+            .Filter.ByExcluding(logEvent =>
+            {
+                var isRequestLog =
+                    Matching.FromSource(
+                        "Serilog.AspNetCore.RequestLoggingMiddleware")
+                    (logEvent);
+
+                if (!isRequestLog)
+                    return false;
+
+                if (logEvent.Properties.TryGetValue(
+                        "RequestPath",
+                        out var pathProperty) &&
+                    pathProperty is ScalarValue scalar &&
+                    scalar.Value is string path)
+                {
+                    return path.Contains("/health") ||
+                           path.Contains("/swagger");
+                }
+
+                return false;
+            })
+            .WriteTo.File(
+                formatter:
+                    new JsonFormatter(),
+
+                path:
+                    "logs/orders-api-.json",
+
+                rollingInterval:
+                    RollingInterval.Day))
+
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+#endregion
+
+#region Controllers y validación
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
 
-// Swagger con soporte para XML comments.
-builder.Services.AddSwaggerGen(options =>
+builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
+    options.InvalidModelStateResponseFactory = context =>
     {
-        Title = "Orders API",
-        Version = "v1",
-        Description = "Microservicio para gestión de órdenes del e-commerce."
-    });
+        var errors =
+            context.ModelState
+                .Where(entry =>
+                    entry.Value?.Errors.Count > 0)
+                .SelectMany(entry =>
+                    entry.Value!.Errors)
+                .Select(error =>
+                    string.IsNullOrWhiteSpace(
+                        error.ErrorMessage)
+                        ? "Valor inválido."
+                        : error.ErrorMessage)
+                .ToList();
 
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        var errorMessage =
+            errors.Count > 0
+                ? string.Join("; ", errors)
+                : "Los datos de la orden son inválidos.";
 
-    if (File.Exists(xmlPath))
-        options.IncludeXmlComments(xmlPath);
+        context.HttpContext.Items[
+            ExceptionHandlerHelper.ErrorCodeItemName] =
+            OrderErrorCodes.InvalidOrderData;
+
+        var correlationId =
+            context.HttpContext.Items.TryGetValue(
+                CorrelationIdMiddleware.HeaderName,
+                out var value)
+                ? value?.ToString()
+                  ?? context.HttpContext.TraceIdentifier
+                : context.HttpContext.TraceIdentifier;
+
+        return new BadRequestObjectResult(
+            new ErrorResponseDto
+            {
+                Type =
+                    "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+
+                Title =
+                    "Bad Request",
+
+                Status =
+                    StatusCodes.Status400BadRequest,
+
+                Detail =
+                    "La solicitud contiene datos inválidos.",
+
+                Instance =
+                    context.HttpContext.Request.Path,
+
+                ErrorCode =
+                    OrderErrorCodes.InvalidOrderData,
+
+                ErrorMessage =
+                    errorMessage,
+
+                CorrelationId =
+                    correlationId
+            });
+    };
 });
 
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+#endregion
 
-// HTTP Context Accessor.
+#region Swagger
+
+
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddSwaggerGen();
+
+#endregion
+
+#region Dependencias
+
+builder.Services.AddSingleton<
+    DatabaseInitializer>();
+
+builder.Services.AddScoped<
+    IOrderRepository,
+    OrderRepository>();
+
+builder.Services.AddScoped<
+    IOrderService,
+    OrderService>();
+
+#endregion
+
+#region Clientes HTTP
+
 builder.Services.AddHttpContextAccessor();
 
-// Handler para propagar X-Correlation-Id en llamadas salientes.
-builder.Services.AddTransient<CorrelationIdDelegatingHandler>();
+builder.Services.AddTransient<
+    CorrelationIdDelegatingHandler>();
 
-// Cliente HTTP hacia Users.API.
+// Cliente hacia Users.API.
 builder.Services
-    .AddHttpClient<IUsersApiClient, UsersApiClient>((serviceProvider, client) =>
-    {
-        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-        var baseUrl = configuration["ExternalServices:UsersApi:BaseUrl"] ?? "http://localhost:5135";
-        client.BaseAddress = new Uri(baseUrl);
-    })
-    .AddHttpMessageHandler<CorrelationIdDelegatingHandler>();
+    .AddHttpClient<IUsersApiClient, UsersApiClient>(
+        (serviceProvider, client) =>
+        {
+            var configuration =
+                serviceProvider.GetRequiredService<
+                    IConfiguration>();
 
-// Cliente HTTP hacia Products.API.
+            var baseUrl =
+                configuration[
+                    "ExternalServices:UsersApi:BaseUrl"]
+                ?? "https://localhost:7003";
+
+            client.BaseAddress =
+                new Uri(baseUrl);
+        })
+    .AddHttpMessageHandler<
+        CorrelationIdDelegatingHandler>();
+
+// Cliente hacia Products.API.
 builder.Services
-    .AddHttpClient<IProductsApiClient, ProductsApiClient>((serviceProvider, client) =>
-    {
-        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-        var baseUrl = configuration["ExternalServices:ProductsApi:BaseUrl"] ?? "http://localhost:5001";
-        client.BaseAddress = new Uri(baseUrl);
-    })
-    .AddHttpMessageHandler<CorrelationIdDelegatingHandler>();
+    .AddHttpClient<IProductsApiClient, ProductsApiClient>(
+        (serviceProvider, client) =>
+        {
+            var configuration =
+                serviceProvider.GetRequiredService<
+                    IConfiguration>();
 
-// Exception handlers.
-builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
-builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-builder.Services.AddExceptionHandler<BusinessRuleExceptionHandler>();
-builder.Services.AddExceptionHandler<UnprocessableEntityExceptionHandler>();
-builder.Services.AddExceptionHandler<InternalServerExceptionHandler>();
+            var baseUrl =
+                configuration[
+                    "ExternalServices:ProductsApi:BaseUrl"]
+                ?? "https://localhost:7001";
+
+            client.BaseAddress =
+                new Uri(baseUrl);
+        })
+    .AddHttpMessageHandler<
+        CorrelationIdDelegatingHandler>();
+
+#endregion
+
+#region Exception handlers
+
+builder.Services.AddExceptionHandler<
+    NotFoundExceptionHandler>();
+
+builder.Services.AddExceptionHandler<
+    ValidationExceptionHandler>();
+
+builder.Services.AddExceptionHandler<
+    BusinessRuleExceptionHandler>();
+
+builder.Services.AddExceptionHandler<
+    GlobalExceptionHandler>();
+
 builder.Services.AddProblemDetails();
 
-// Health checks.
-builder.Services.AddHealthChecks()
-    .AddCheck<ApiStatusCheck>("api-status", tags: new[] { "live" })
-    .AddCheck<SqliteHealthCheck>("sqlite-db", tags: new[] { "ready", "database" });
+#endregion
 
-// Inicialización de la base de datos.
-builder.Services.AddSingleton<DatabaseInitializer>();
+#region Health Checks
+
+builder.Services
+    .AddHealthChecks()
+
+    .AddCheck<ApiStatusCheck>(
+        "api-status",
+        tags: new[]
+        {
+            "live",
+            "api"
+        })
+
+    .AddCheck<SqliteHealthCheck>(
+        "sqlite-db",
+        tags: new[]
+        {
+            "ready",
+            "database"
+        });
+
+builder.Services
+    .AddHealthChecksUI(setup =>
+    {
+        setup.SetEvaluationTimeInSeconds(600);
+
+        setup.AddHealthCheckEndpoint(
+            "Orders.API",
+            "/health");
+    })
+    .AddInMemoryStorage();
+
+#endregion
 
 var app = builder.Build();
 
-// Inicializar la base de datos al iniciar la aplicación.
+#region Inicialización SQLite
+
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
-    db.Initialize();
+    var initializer =
+        scope.ServiceProvider
+            .GetRequiredService<
+                DatabaseInitializer>();
+
+    initializer.Initialize();
 }
+
+#endregion
+
+#region Swagger
 
 if (app.Environment.IsDevelopment())
 {
@@ -106,54 +309,123 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// CorrelationId middleware.
-app.UseMiddleware<CorrelationIdMiddleware>();
+#endregion
 
-// Serilog request logging (registra duración automáticamente).
+// Genera el Correlation ID.
+app.UseMiddleware<
+    CorrelationIdMiddleware>();
+
+// Registra requests con estado y duración.
 app.UseSerilogRequestLogging(options =>
 {
-    options.MessageTemplate =
-        "HTTP {RequestMethod} {RequestPath} respondió {StatusCode} en {Elapsed:0.0000} ms";
+    options.GetLevel =
+        (httpContext, elapsed, exception) =>
+        {
+            if (exception is not null)
+                return LogEventLevel.Error;
+
+            if (httpContext.Response.StatusCode >= 500)
+                return LogEventLevel.Error;
+
+            if (httpContext.Response.StatusCode >= 400)
+                return LogEventLevel.Warning;
+
+            if (httpContext.Request.Path
+                .StartsWithSegments("/health"))
+            {
+                return LogEventLevel.Verbose;
+            }
+
+            return LogEventLevel.Information;
+        };
+
+    options.EnrichDiagnosticContext =
+        (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set(
+                "Endpoint",
+                httpContext.Request.Path);
+
+            diagnosticContext.Set(
+                "RequestMethod",
+                httpContext.Request.Method);
+
+            diagnosticContext.Set(
+                "StatusCode",
+                httpContext.Response.StatusCode);
+
+            if (httpContext.Items.TryGetValue(
+                    CorrelationIdMiddleware.HeaderName,
+                    out var correlationId))
+            {
+                diagnosticContext.Set(
+                    "CorrelationId",
+                    correlationId);
+            }
+
+            if (httpContext.Items.TryGetValue(
+                    ExceptionHandlerHelper.ErrorCodeItemName,
+                    out var errorCode))
+            {
+                diagnosticContext.Set(
+                    "errorCode",
+                    errorCode);
+            }
+        };
 });
 
+// Manejo global de errores.
 app.UseExceptionHandler();
+
 app.UseHttpsRedirection();
+
+app.UseAuthorization();
+
 app.MapControllers();
 
-// Health checks.
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
+#region Health endpoints
+
+app.MapHealthChecks(
+    "/health",
+    new HealthCheckOptions
     {
-        await context.Response.WriteAsJsonAsync(new
-        {
-            status = report.Status.ToString()
-        });
-    }
+        ResponseWriter =
+            UIResponseWriter
+                .WriteHealthCheckUIResponse
+    });
+
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions
+    {
+        Predicate =
+            registration =>
+                registration.Tags.Contains("ready"),
+
+        ResponseWriter =
+            UIResponseWriter
+                .WriteHealthCheckUIResponse
+    });
+
+app.MapHealthChecks(
+    "/health/live",
+    new HealthCheckOptions
+    {
+        Predicate =
+            registration =>
+                registration.Tags.Contains("live"),
+
+        ResponseWriter =
+            UIResponseWriter
+                .WriteHealthCheckUIResponse
+    });
+
+app.MapHealthChecksUI(options =>
+{
+    options.UIPath =
+        "/health-ui";
 });
 
-app.MapHealthChecks("/health/ready", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("ready"),
-    ResponseWriter = async (context, report) =>
-    {
-        await context.Response.WriteAsJsonAsync(new
-        {
-            status = report.Status.ToString()
-        });
-    }
-});
-
-app.MapHealthChecks("/health/live", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("live"),
-    ResponseWriter = async (context, report) =>
-    {
-        await context.Response.WriteAsJsonAsync(new
-        {
-            status = report.Status.ToString()
-        });
-    }
-});
+#endregion
 
 app.Run();

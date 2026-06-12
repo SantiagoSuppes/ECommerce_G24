@@ -1,23 +1,26 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Orders.API.Dtos;
+namespace Orders.API.DTOs;
 
 /// <summary>
-/// DTO para la creación de una orden.
+/// Datos requeridos para crear una orden.
 /// </summary>
 public class CreateOrderRequestDto
 {
     /// <summary>
-    /// ID del usuario que realiza la orden.
+    /// Usuario que realiza la orden.
     /// </summary>
-    [Required(ErrorMessage = "El ID del usuario es requerido.")]
-    [StringLength(36, MinimumLength = 36, ErrorMessage = "El ID del usuario debe ser un GUID válido.")]
     public Guid UsuarioId { get; set; }
 
     /// <summary>
-    /// Lista de items de la orden.
+    /// Productos incluidos en la orden.
+    /// Debe contener al menos un item.
     /// </summary>
-    [Required(ErrorMessage = "La lista de items es obligatoria.")]
-    [MinLength(1, ErrorMessage = "La orden debe tener al menos un item.")]
-    public List<OrderItemDto> Items { get; set; } = new();
+    [Required(
+        ErrorMessage = "La lista de items es obligatoria.")]
+
+    [MinLength(
+        1,
+        ErrorMessage = "La orden debe contener al menos un item.")]
+    public List<CreateOrderItemRequestDto> Items { get; set; } = new();
 }

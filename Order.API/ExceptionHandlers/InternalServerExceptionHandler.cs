@@ -1,35 +1,80 @@
 using Microsoft.AspNetCore.Diagnostics;
-using System.Net;
+using Orders.API.DTOs;
 using Orders.API.Exceptions;
+using Serilog.Context;
+using System.Net;
 
 namespace Orders.API.ExceptionHandlers;
 
 public class InternalServerExceptionHandler : IExceptionHandler
 {
+
+    private readonly ILogger<GlobalExceptionHandler> _logger;
+    private readonly IConfiguration _configuration;
+
+    public GlobalExceptionHandler(
+        ILogger<GlobalExceptionHandler> logger,
+        IConfiguration configuration)
+    {
+        _logger = logger;
+        _configuration = configuration;
+    }
+
     public async ValueTask<bool> TryHandleAsync(
-        HttpContext httpContext,
+        HttpContext context,
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (exception is not InternalServerException ex)
-            return false;
+        context.Items[
+            ExceptionHandlerHelper.ErrorCodeItemName] =
+            OrderErrorCodes.InternalOrderError;
 
-        var correlationId = httpContext.Items["X-Correlation-Id"]?.ToString();
-
-        httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-        httpContext.Response.ContentType = "application/json";
-
-        await httpContext.Response.WriteAsJsonAsync(new
+        using (LogContext.PushProperty(
+                   "errorCode",
+                   OrderErrorCodes.InternalOrderError))
         {
-            type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
-            title = "Internal Server Error",
-            status = 500,
-            detail = ex.Message,
-            instance = httpContext.Request.Path,
-            errorCode = ex.ErrorCode,
-            errorMessage = ex.Message,
-            correlationId
-        }, cancellationToken);
+            _logger.LogError(
+                exception,
+                "Error interno al procesar la orden.");
+        }
+
+        var includeDetails =
+            _configuration.GetValue<bool>(
+                "ErrorHandling:IncludeExceptionDetails");
+
+        context.Response.StatusCode =
+            StatusCodes.Status500InternalServerError;
+
+        await context.Response.WriteAsJsonAsync(
+            new ErrorResponseDto
+            {
+                Type =
+                    "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+
+                Title =
+                    "Internal Server Error",
+
+                Status =
+                    StatusCodes.Status500InternalServerError,
+
+                // Nunca se devuelve el stack trace.
+                Detail = includeDetails
+                    ? exception.Message
+                    : "Ocurrió un error interno en el servidor.",
+
+                Instance =
+                    context.Request.Path,
+
+                ErrorCode =
+                    OrderErrorCodes.InternalOrderError,
+
+                ErrorMessage =
+                    "Error interno al procesar la orden.",
+
+                CorrelationId =
+                    ExceptionHandlerHelper.GetCorrelationId(context)
+            },
+            cancellationToken);
 
         return true;
     }

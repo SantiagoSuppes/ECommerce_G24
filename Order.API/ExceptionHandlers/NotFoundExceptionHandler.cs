@@ -1,35 +1,76 @@
 using Microsoft.AspNetCore.Diagnostics;
+using Orders.API.DTOs;
 using Orders.API.Exceptions;
-using System.Net;
+using Serilog.Context;
 
 namespace Orders.API.ExceptionHandlers;
 
-public class NotFoundExceptionHandler : IExceptionHandler
+/// <summary>
+/// Maneja errores 404 de Orders.API.
+/// </summary>
+public class NotFoundExceptionHandler
+    : IExceptionHandler
 {
+    private readonly ILogger<NotFoundExceptionHandler> _logger;
+
+    public NotFoundExceptionHandler(
+        ILogger<NotFoundExceptionHandler> logger)
+    {
+        _logger = logger;
+    }
+
     public async ValueTask<bool> TryHandleAsync(
-        HttpContext httpContext,
+        HttpContext context,
         Exception exception,
         CancellationToken cancellationToken)
     {
         if (exception is not NotFoundException ex)
             return false;
 
-        var correlationId = httpContext.Items["X-Correlation-Id"]?.ToString();
+        context.Items[
+            ExceptionHandlerHelper.ErrorCodeItemName] =
+            ex.ErrorCode;
 
-        httpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
-        httpContext.Response.ContentType = "application/json";
-
-        await httpContext.Response.WriteAsJsonAsync(new
+        using (LogContext.PushProperty(
+                   "errorCode",
+                   ex.ErrorCode))
         {
-            type = "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-            title = "Not Found",
-            status = 404,
-            detail = ex.Message,
-            instance = httpContext.Request.Path,
-            errorCode = ex.ErrorCode,
-            errorMessage = ex.Message,
-            correlationId
-        }, cancellationToken);
+            _logger.LogWarning(
+                exception,
+                "Recurso no encontrado. ErrorCode: {ErrorCode}",
+                ex.ErrorCode);
+        }
+
+        context.Response.StatusCode =
+            StatusCodes.Status404NotFound;
+
+        await context.Response.WriteAsJsonAsync(
+            new ErrorResponseDto
+            {
+                Type =
+                    "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+
+                Title = "Not Found",
+
+                Status =
+                    StatusCodes.Status404NotFound,
+
+                Detail =
+                    "El recurso solicitado no fue encontrado.",
+
+                Instance =
+                    context.Request.Path,
+
+                ErrorCode =
+                    ex.ErrorCode,
+
+                ErrorMessage =
+                    ex.Message,
+
+                CorrelationId =
+                    ExceptionHandlerHelper.GetCorrelationId(context)
+            },
+            cancellationToken);
 
         return true;
     }

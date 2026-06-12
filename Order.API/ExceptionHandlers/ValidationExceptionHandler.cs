@@ -1,35 +1,73 @@
 using Microsoft.AspNetCore.Diagnostics;
-using System.Net;
+using Orders.API.DTOs;
 using Orders.API.Exceptions;
+using Serilog.Context;
 
 namespace Orders.API.ExceptionHandlers;
 
-public class ValidationExceptionHandler : IExceptionHandler
+/// <summary>
+/// Maneja ORD-002.
+/// </summary>
+public class ValidationExceptionHandler
+    : IExceptionHandler
 {
+    private readonly ILogger<ValidationExceptionHandler> _logger;
+
+    public ValidationExceptionHandler(
+        ILogger<ValidationExceptionHandler> logger)
+    {
+        _logger = logger;
+    }
+
     public async ValueTask<bool> TryHandleAsync(
-        HttpContext httpContext,
+        HttpContext context,
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (exception is not ValidationException validationException)
+        if (exception is not ValidationException ex)
             return false;
 
-        var correlationId = httpContext.Items["X-Correlation-Id"]?.ToString();
+        context.Items[
+            ExceptionHandlerHelper.ErrorCodeItemName] =
+            ex.ErrorCode;
 
-        httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-        httpContext.Response.ContentType = "application/json";
+        using (LogContext.PushProperty(
+                   "errorCode",
+                   ex.ErrorCode))
+        {
+            _logger.LogWarning(
+                exception,
+                "Datos de orden inválidos.");
+        }
 
-        await httpContext.Response.WriteAsJsonAsync(
-            new
+        context.Response.StatusCode =
+            StatusCodes.Status400BadRequest;
+
+        await context.Response.WriteAsJsonAsync(
+            new ErrorResponseDto
             {
-                type = "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-                title = "Bad Request",
-                status = 400,
-                detail = validationException.Message,
-                instance = httpContext.Request.Path,
-                errorCode = "ORD-002",
-                errorMessage = validationException.Message,
-                correlationId
+                Type =
+                    "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+
+                Title = "Bad Request",
+
+                Status =
+                    StatusCodes.Status400BadRequest,
+
+                Detail =
+                    "La solicitud contiene datos inválidos.",
+
+                Instance =
+                    context.Request.Path,
+
+                ErrorCode =
+                    ex.ErrorCode,
+
+                ErrorMessage =
+                    ex.Message,
+
+                CorrelationId =
+                    ExceptionHandlerHelper.GetCorrelationId(context)
             },
             cancellationToken);
 
